@@ -10,6 +10,9 @@ import GameClock from "@/components/GameClock";
 import TeamStats from "@/components/TeamStats";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
+import { Button } from "@/components/ui/button";
+import { Settings, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const INITIAL_ROSTER_HOME: Player[] = [
   { id: 'h1', name: 'J. Smith', number: 12, position: 'QB' },
@@ -25,17 +28,37 @@ const INITIAL_ROSTER_AWAY: Player[] = [
   { id: 'a4', name: 'A. Green', number: 18, position: 'WR' },
 ];
 
-const STORAGE_KEY = 'football_stat_keeper_pro_v2';
+const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
+const TEAM_STORAGE_KEY = 'football_stat_keeper_teams_v1';
 
 const Index = () => {
   const [gameState, setGameState] = useState<GameState>(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
+    const savedGame = localStorage.getItem(GAME_STORAGE_KEY);
+    const savedTeams = localStorage.getItem(TEAM_STORAGE_KEY);
+    
+    let initialTeams = {
+      homeTeam: "Wildcats",
+      awayTeam: "Eagles",
+      roster: { home: INITIAL_ROSTER_HOME, away: INITIAL_ROSTER_AWAY }
+    };
+
+    if (savedTeams) {
+      const teamData = JSON.parse(savedTeams);
+      initialTeams = {
+        homeTeam: teamData.homeTeamName,
+        awayTeam: teamData.awayTeamName,
+        roster: { home: teamData.homeRoster, away: teamData.awayRoster }
+      };
+    }
+
+    if (savedGame) {
+      const gameData = JSON.parse(savedGame);
+      return { ...gameData, ...initialTeams };
+    }
     
     const initialDriveId = Math.random().toString(36).substr(2, 9);
     return {
-      homeTeam: "Wildcats",
-      awayTeam: "Eagles",
+      ...initialTeams,
       homeScore: 0,
       awayScore: 0,
       homeTimeouts: 3,
@@ -45,7 +68,7 @@ const Index = () => {
       distance: 10,
       yardLine: 25,
       quarter: 1,
-      gameClock: 900, // 15 mins
+      gameClock: 900,
       isClockRunning: false,
       currentDriveId: initialDriveId,
       playLog: [],
@@ -57,10 +80,6 @@ const Index = () => {
         yards: 0,
         startTime: Date.now()
       }],
-      roster: {
-        home: INITIAL_ROSTER_HOME,
-        away: INITIAL_ROSTER_AWAY,
-      },
       stats: {}
     };
   });
@@ -69,7 +88,7 @@ const Index = () => {
   const clockInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
+    localStorage.setItem(GAME_STORAGE_KEY, JSON.stringify(gameState));
   }, [gameState]);
 
   useEffect(() => {
@@ -186,7 +205,6 @@ const Index = () => {
 
       newState.playLog = [newPlay, ...prev.playLog];
 
-      // Update Drive Stats
       const driveIdx = newState.drives.findIndex(d => d.id === prev.currentDriveId);
       if (driveIdx !== -1) {
         newState.drives[driveIdx].plays += 1;
@@ -195,7 +213,6 @@ const Index = () => {
           newState.drives[driveIdx].result = type;
           newState.drives[driveIdx].endYardLine = newYardLine;
           
-          // Start New Drive
           const newDriveId = Math.random().toString(36).substr(2, 9);
           newState.currentDriveId = newDriveId;
           newState.drives.push({
@@ -215,71 +232,83 @@ const Index = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-      <div className="max-w-[1400px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-6">
-        
-        {/* Left: Game Status & Controls */}
-        <div className="lg:col-span-8 space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="md:col-span-2">
-              <Scoreboard 
-                homeTeam={gameState.homeTeam} awayTeam={gameState.awayTeam}
-                homeScore={gameState.homeScore} awayScore={gameState.awayScore}
-                homeTimeouts={gameState.homeTimeouts} awayTimeouts={gameState.awayTimeouts}
-                possession={gameState.possession} down={gameState.down}
-                distance={gameState.distance} quarter={gameState.quarter}
-              />
-            </div>
-            <GameClock 
-              seconds={gameState.gameClock}
-              isRunning={gameState.isClockRunning}
-              onToggle={() => setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))}
-              onReset={() => setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))}
-              onNextQuarter={() => setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1), gameClock: 900 }))}
-              quarter={gameState.quarter}
-            />
+      <div className="max-w-[1400px] mx-auto space-y-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-black tracking-tighter text-slate-900">STAT KEEPER PRO</h1>
+          <div className="flex gap-2">
+            <Link to="/teams">
+              <Button variant="outline" className="gap-2">
+                <Users className="w-4 h-4" /> Manage Teams
+              </Button>
+            </Link>
+            <Button variant="ghost" size="icon">
+              <Settings className="w-5 h-5" />
+            </Button>
           </div>
+        </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Field Spotter</h2>
-                <div className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded">LIVE POSITION</div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          <div className="lg:col-span-8 space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2">
+                <Scoreboard 
+                  homeTeam={gameState.homeTeam} awayTeam={gameState.awayTeam}
+                  homeScore={gameState.homeScore} awayScore={gameState.awayScore}
+                  homeTimeouts={gameState.homeTimeouts} awayTimeouts={gameState.awayTimeouts}
+                  possession={gameState.possession} down={gameState.down}
+                  distance={gameState.distance} quarter={gameState.quarter}
+                />
               </div>
-              <FootballField 
-                ballPosition={gameState.yardLine}
-                possession={gameState.possession}
-                onSpotBall={(y) => setGameState(prev => ({ ...prev, yardLine: y }))}
+              <GameClock 
+                seconds={gameState.gameClock}
+                isRunning={gameState.isClockRunning}
+                onToggle={() => setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))}
+                onReset={() => setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))}
+                onNextQuarter={() => setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1), gameClock: 900 }))}
+                quarter={gameState.quarter}
               />
             </div>
 
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-              <ActionPanel 
-                roster={gameState.possession === "Home" ? gameState.roster.home : gameState.roster.away}
-                onAction={handleAction}
-                onUndo={handleUndo}
-                canUndo={history.length > 0}
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Field Spotter</h2>
+                  <div className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded">LIVE POSITION</div>
+                </div>
+                <FootballField 
+                  ballPosition={gameState.yardLine}
+                  possession={gameState.possession}
+                  onSpotBall={(y) => setGameState(prev => ({ ...prev, yardLine: y }))}
+                />
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                <ActionPanel 
+                  roster={gameState.possession === "Home" ? gameState.roster.home : gameState.roster.away}
+                  onAction={handleAction}
+                  onUndo={handleUndo}
+                  canUndo={history.length > 0}
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <TeamStats team="Home" teamName={gameState.homeTeam} plays={gameState.playLog} />
+              <TeamStats team="Away" teamName={gameState.awayTeam} plays={gameState.playLog} />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <StatsTable title={gameState.homeTeam} players={gameState.roster.home} stats={gameState.stats} />
+              <StatsTable title={gameState.awayTeam} players={gameState.roster.away} stats={gameState.stats} />
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <TeamStats team="Home" teamName={gameState.homeTeam} plays={gameState.playLog} />
-            <TeamStats team="Away" teamName={gameState.awayTeam} plays={gameState.playLog} />
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <StatsTable title={gameState.homeTeam} players={gameState.roster.home} stats={gameState.stats} />
-            <StatsTable title={gameState.awayTeam} players={gameState.roster.away} stats={gameState.stats} />
+          <div className="lg:col-span-4">
+            <div className="sticky top-6 h-[calc(100vh-8rem)]">
+              <PlayLog plays={gameState.playLog} />
+            </div>
           </div>
         </div>
-
-        {/* Right: Play Log */}
-        <div className="lg:col-span-4">
-          <div className="sticky top-6 h-[calc(100vh-3rem)]">
-            <PlayLog plays={gameState.playLog} />
-          </div>
-        </div>
-
       </div>
     </div>
   );

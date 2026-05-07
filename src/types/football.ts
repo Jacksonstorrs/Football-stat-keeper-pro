@@ -41,7 +41,6 @@ export interface Play {
   id: string;
   type: PlayType;
   player?: Player;
-  target?: Player;
   yards: number;
   result: string;
   down: number;
@@ -51,6 +50,18 @@ export interface Play {
   timestamp: number;
   isFirstDown: boolean;
   isScoringPlay: boolean;
+  driveId: string;
+}
+
+export interface Drive {
+  id: string;
+  team: Team;
+  startYardLine: number;
+  endYardLine?: number;
+  plays: number;
+  yards: number;
+  result?: string;
+  startTime: number;
 }
 
 export interface GameState {
@@ -65,7 +76,11 @@ export interface GameState {
   distance: number;
   yardLine: number;
   quarter: number;
+  gameClock: number; // seconds
+  isClockRunning: boolean;
+  currentDriveId: string;
   playLog: Play[];
+  drives: Drive[];
   roster: {
     home: Player[];
     away: Player[];

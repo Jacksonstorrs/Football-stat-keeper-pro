@@ -1,14 +1,15 @@
 "use client";
 
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import Scoreboard from "@/components/Scoreboard";
 import FootballField from "@/components/FootballField";
 import ActionPanel from "@/components/ActionPanel";
 import PlayLog from "@/components/PlayLog";
 import StatsTable from "@/components/StatsTable";
-import { GameState, Player, Play, Team, PlayerStats, PlayType } from "@/types/football";
+import GameClock from "@/components/GameClock";
+import TeamStats from "@/components/TeamStats";
+import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const INITIAL_ROSTER_HOME: Player[] = [
   { id: 'h1', name: 'J. Smith', number: 12, position: 'QB' },
@@ -24,13 +25,14 @@ const INITIAL_ROSTER_AWAY: Player[] = [
   { id: 'a4', name: 'A. Green', number: 18, position: 'WR' },
 ];
 
-const STORAGE_KEY = 'football_stat_keeper_pro_v1';
+const STORAGE_KEY = 'football_stat_keeper_pro_v2';
 
 const Index = () => {
   const [gameState, setGameState] = useState<GameState>(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
     if (saved) return JSON.parse(saved);
     
+    const initialDriveId = Math.random().toString(36).substr(2, 9);
     return {
       homeTeam: "Wildcats",
       awayTeam: "Eagles",
@@ -43,7 +45,18 @@ const Index = () => {
       distance: 10,
       yardLine: 25,
       quarter: 1,
+      gameClock: 900, // 15 mins
+      isClockRunning: false,
+      currentDriveId: initialDriveId,
       playLog: [],
+      drives: [{
+        id: initialDriveId,
+        team: "Home",
+        startYardLine: 25,
+        plays: 0,
+        yards: 0,
+        startTime: Date.now()
+      }],
       roster: {
         home: INITIAL_ROSTER_HOME,
         away: INITIAL_ROSTER_AWAY,
@@ -53,10 +66,26 @@ const Index = () => {
   });
 
   const [history, setHistory] = useState<GameState[]>([]);
+  const clockInterval = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(gameState));
   }, [gameState]);
+
+  useEffect(() => {
+    if (gameState.isClockRunning && gameState.gameClock > 0) {
+      clockInterval.current = setInterval(() => {
+        setGameState(prev => ({
+          ...prev,
+          gameClock: Math.max(0, prev.gameClock - 1),
+          isClockRunning: prev.gameClock > 1
+        }));
+      }, 1000);
+    } else {
+      if (clockInterval.current) clearInterval(clockInterval.current);
+    }
+    return () => { if (clockInterval.current) clearInterval(clockInterval.current); };
+  }, [gameState.isClockRunning, gameState.gameClock]);
 
   const saveToHistory = useCallback(() => {
     setHistory(prev => [...prev, { ...gameState }]);
@@ -71,11 +100,6 @@ const Index = () => {
     }
   };
 
-  const handleSpotBall = (yardLine: number) => {
-    saveToHistory();
-    setGameState(prev => ({ ...prev, yardLine }));
-  };
-
   const updatePlayerStats = (stats: Record<string, PlayerStats>, player: Player, type: PlayType, yards: number) => {
     const current = stats[player.id] || {
       passAtt: 0, passComp: 0, passYds: 0, passTDs: 0, ints: 0,
@@ -84,30 +108,13 @@ const Index = () => {
     };
 
     const updated = { ...current };
-    
     switch (type) {
-      case "Pass":
-        updated.passAtt += 1;
-        updated.passComp += 1;
-        updated.passYds += yards;
-        break;
-      case "Incomplete":
-        updated.passAtt += 1;
-        break;
-      case "Run":
-        updated.rushAtt += 1;
-        updated.rushYds += yards;
-        break;
-      case "Sack":
-        updated.passAtt += 1; // Often counted as pass attempt or just sack
-        updated.rushYds += yards; // Sacks are negative rushing yards in college, pass yards in NFL
-        break;
-      case "Touchdown":
-        // Logic depends on previous play, but for simplicity:
-        updated.rushTDs += 1;
-        break;
+      case "Pass": updated.passAtt += 1; updated.passComp += 1; updated.passYds += yards; break;
+      case "Incomplete": updated.passAtt += 1; break;
+      case "Run": updated.rushAtt += 1; updated.rushYds += yards; break;
+      case "Sack": updated.passAtt += 1; updated.rushYds += yards; break;
+      case "Touchdown": updated.rushTDs += 1; break;
     }
-
     return { ...stats, [player.id]: updated };
   };
 
@@ -121,27 +128,29 @@ const Index = () => {
       let newYardLine = currentYardLine;
       let isFirstDown = false;
       let isScoringPlay = false;
+      let possessionChanged = false;
 
       if (type === "Touchdown") {
         isScoringPlay = true;
         if (prev.possession === "Home") {
           newState.homeScore += 7;
           newYardLine = 65;
-          newState.possession = "Away";
         } else {
           newState.awayScore += 7;
           newYardLine = 35;
-          newState.possession = "Home";
         }
-        newState.down = 1;
-        newState.distance = 10;
-        result = "TOUCHDOWN!";
-        if (player) newState.stats = updatePlayerStats(newState.stats, player, type, yards);
-      } else if (type === "Turnover") {
         newState.possession = prev.possession === "Home" ? "Away" : "Home";
         newState.down = 1;
         newState.distance = 10;
-        result = "Turnover";
+        result = "TOUCHDOWN!";
+        possessionChanged = true;
+        if (player) newState.stats = updatePlayerStats(newState.stats, player, type, yards);
+      } else if (type === "Turnover" || type === "Punt") {
+        newState.possession = prev.possession === "Home" ? "Away" : "Home";
+        newState.down = 1;
+        newState.distance = 10;
+        result = type;
+        possessionChanged = true;
       } else {
         const direction = prev.possession === "Home" ? 1 : -1;
         newYardLine = Math.max(0, Math.min(100, currentYardLine + (yards * direction)));
@@ -158,6 +167,7 @@ const Index = () => {
             newState.possession = prev.possession === "Home" ? "Away" : "Home";
             newState.down = 1;
             newState.distance = 10;
+            possessionChanged = true;
           } else {
             newState.down = prev.down + 1;
             newState.distance = Math.max(0, prev.distance - yards);
@@ -168,20 +178,37 @@ const Index = () => {
 
       const newPlay: Play = {
         id: Math.random().toString(36).substr(2, 9),
-        type,
-        player,
-        yards,
-        result,
-        down: prev.down,
-        distance: prev.distance,
-        yardLine: currentYardLine,
-        possession: prev.possession,
-        timestamp: Date.now(),
-        isFirstDown,
-        isScoringPlay
+        type, player, yards, result,
+        down: prev.down, distance: prev.distance, yardLine: currentYardLine,
+        possession: prev.possession, timestamp: Date.now(),
+        isFirstDown, isScoringPlay, driveId: prev.currentDriveId
       };
 
       newState.playLog = [newPlay, ...prev.playLog];
+
+      // Update Drive Stats
+      const driveIdx = newState.drives.findIndex(d => d.id === prev.currentDriveId);
+      if (driveIdx !== -1) {
+        newState.drives[driveIdx].plays += 1;
+        newState.drives[driveIdx].yards += (type === "Penalty" ? 0 : yards);
+        if (possessionChanged) {
+          newState.drives[driveIdx].result = type;
+          newState.drives[driveIdx].endYardLine = newYardLine;
+          
+          // Start New Drive
+          const newDriveId = Math.random().toString(36).substr(2, 9);
+          newState.currentDriveId = newDriveId;
+          newState.drives.push({
+            id: newDriveId,
+            team: newState.possession,
+            startYardLine: newYardLine,
+            plays: 0,
+            yards: 0,
+            startTime: Date.now()
+          });
+        }
+      }
+
       return newState;
     });
   };
@@ -192,18 +219,25 @@ const Index = () => {
         
         {/* Left: Game Status & Controls */}
         <div className="lg:col-span-8 space-y-6">
-          <Scoreboard 
-            homeTeam={gameState.homeTeam}
-            awayTeam={gameState.awayTeam}
-            homeScore={gameState.homeScore}
-            awayScore={gameState.awayScore}
-            homeTimeouts={gameState.homeTimeouts}
-            awayTimeouts={gameState.awayTimeouts}
-            possession={gameState.possession}
-            down={gameState.down}
-            distance={gameState.distance}
-            quarter={gameState.quarter}
-          />
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <Scoreboard 
+                homeTeam={gameState.homeTeam} awayTeam={gameState.awayTeam}
+                homeScore={gameState.homeScore} awayScore={gameState.awayScore}
+                homeTimeouts={gameState.homeTimeouts} awayTimeouts={gameState.awayTimeouts}
+                possession={gameState.possession} down={gameState.down}
+                distance={gameState.distance} quarter={gameState.quarter}
+              />
+            </div>
+            <GameClock 
+              seconds={gameState.gameClock}
+              isRunning={gameState.isClockRunning}
+              onToggle={() => setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))}
+              onReset={() => setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))}
+              onNextQuarter={() => setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1), gameClock: 900 }))}
+              quarter={gameState.quarter}
+            />
+          </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
@@ -214,7 +248,7 @@ const Index = () => {
               <FootballField 
                 ballPosition={gameState.yardLine}
                 possession={gameState.possession}
-                onSpotBall={handleSpotBall}
+                onSpotBall={(y) => setGameState(prev => ({ ...prev, yardLine: y }))}
               />
             </div>
 
@@ -229,16 +263,13 @@ const Index = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <StatsTable 
-              title={gameState.homeTeam} 
-              players={gameState.roster.home} 
-              stats={gameState.stats} 
-            />
-            <StatsTable 
-              title={gameState.awayTeam} 
-              players={gameState.roster.away} 
-              stats={gameState.stats} 
-            />
+            <TeamStats team="Home" teamName={gameState.homeTeam} plays={gameState.playLog} />
+            <TeamStats team="Away" teamName={gameState.awayTeam} plays={gameState.playLog} />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <StatsTable title={gameState.homeTeam} players={gameState.roster.home} stats={gameState.stats} />
+            <StatsTable title={gameState.awayTeam} players={gameState.roster.away} stats={gameState.stats} />
           </div>
         </div>
 

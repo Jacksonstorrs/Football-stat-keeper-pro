@@ -20,36 +20,66 @@ interface StatsTableProps {
 
 const StatsTable: React.FC<StatsTableProps> = ({ players, stats, title }) => {
   return (
-    <Card className="overflow-hidden border-none shadow-md">
-      <div className="bg-slate-800 text-white px-4 py-2 text-sm font-bold uppercase tracking-wider">
-        {title} Stats
+    <Card className="overflow-hidden border border-slate-200 shadow-sm rounded-xl">
+      <div className="bg-slate-900 text-white px-4 py-2.5 text-[10px] font-black uppercase tracking-[0.2em]">
+        {title} Box Score
       </div>
-      <Table>
-        <TableHeader className="bg-slate-50">
-          <TableRow>
-            <TableHead className="w-[150px]">Player</TableHead>
-            <TableHead className="text-right">Pass Yds</TableHead>
-            <TableHead className="text-right">Rush Yds</TableHead>
-            <TableHead className="text-right">TDs</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {players.map((player) => {
-            const s = stats[player.id] || { passYds: 0, rushYds: 0, passTDs: 0, rushTDs: 0 };
-            return (
-              <TableRow key={player.id}>
-                <TableCell className="font-medium">
-                  <span className="text-slate-400 mr-2">#{player.number}</span>
-                  {player.name}
+      <div className="overflow-x-auto">
+        <Table>
+          <TableHeader className="bg-slate-50">
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[120px] text-[10px] font-black uppercase">Player</TableHead>
+              <TableHead className="text-right text-[10px] font-black uppercase">C/A</TableHead>
+              <TableHead className="text-right text-[10px] font-black uppercase">P-Yds</TableHead>
+              <TableHead className="text-right text-[10px] font-black uppercase">R-Att</TableHead>
+              <TableHead className="text-right text-[10px] font-black uppercase">R-Yds</TableHead>
+              <TableHead className="text-right text-[10px] font-black uppercase">TD</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {players.map((player) => {
+              const s = stats[player.id] || { 
+                passAtt: 0, passComp: 0, passYds: 0, 
+                rushAtt: 0, rushYds: 0, passTDs: 0, rushTDs: 0 
+              };
+              
+              const hasStats = s.passAtt > 0 || s.rushAtt > 0;
+              if (!hasStats) return null;
+
+              return (
+                <TableRow key={player.id} className="hover:bg-slate-50/50">
+                  <TableCell className="font-bold text-xs py-3">
+                    <span className="text-slate-400 mr-1.5 font-mono">#{player.number}</span>
+                    {player.name}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-xs font-medium">
+                    {s.passComp}/{s.passAtt}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-xs font-bold text-blue-600">
+                    {s.passYds}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-xs font-medium">
+                    {s.rushAtt}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-xs font-bold text-emerald-600">
+                    {s.rushYds}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-xs font-black">
+                    {(s.passTDs || 0) + (s.rushTDs || 0)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {players.every(p => !stats[p.id]) && (
+              <TableRow>
+                <TableCell colSpan={6} className="text-center py-8 text-slate-400 text-xs italic">
+                  No stats recorded for this team yet.
                 </TableCell>
-                <TableCell className="text-right tabular-nums">{s.passYds}</TableCell>
-                <TableCell className="text-right tabular-nums">{s.rushYds}</TableCell>
-                <TableCell className="text-right tabular-nums">{(s.passTDs || 0) + (s.rushTDs || 0)}</TableCell>
               </TableRow>
-            );
-          })}
-        </TableBody>
-      </Table>
+            )}
+          </TableBody>
+        </Table>
+      </div>
     </Card>
   );
 };

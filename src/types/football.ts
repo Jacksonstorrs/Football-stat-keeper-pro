@@ -8,21 +8,40 @@ export interface Player {
 }
 
 export interface PlayerStats {
+  passAtt: number;
+  passComp: number;
   passYds: number;
   passTDs: number;
   ints: number;
+  rushAtt: number;
   rushYds: number;
   rushTDs: number;
   receptions: number;
   recYds: number;
+  recTDs: number;
+  fumbles: number;
   tackles: number;
+  sacks: number;
 }
+
+export type PlayType = 
+  | "Run" 
+  | "Pass" 
+  | "Incomplete" 
+  | "Sack" 
+  | "Penalty" 
+  | "Punt" 
+  | "Field Goal" 
+  | "Kickoff" 
+  | "Touchdown" 
+  | "Turnover"
+  | "Fumble";
 
 export interface Play {
   id: string;
-  type: "Run" | "Pass" | "Penalty" | "Punt" | "Field Goal" | "Kickoff" | "Sack" | "Incomplete";
+  type: PlayType;
   player?: Player;
-  target?: Player; // For passes
+  target?: Player;
   yards: number;
   result: string;
   down: number;
@@ -32,15 +51,6 @@ export interface Play {
   timestamp: number;
   isFirstDown: boolean;
   isScoringPlay: boolean;
-}
-
-export interface Drive {
-  id: string;
-  possession: Team;
-  plays: Play[];
-  result: "Touchdown" | "Field Goal" | "Punt" | "Turnover" | "End of Half" | "Active";
-  startYardLine: number;
-  endYardLine: number;
 }
 
 export interface GameState {
@@ -55,10 +65,10 @@ export interface GameState {
   distance: number;
   yardLine: number;
   quarter: number;
-  drives: Drive[];
+  playLog: Play[];
   roster: {
     home: Player[];
     away: Player[];
   };
-  stats: Record<string, PlayerStats>; // Keyed by player ID
+  stats: Record<string, PlayerStats>;
 }

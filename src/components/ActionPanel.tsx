@@ -2,102 +2,153 @@
 
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
-import { Player, Team } from "@/types/football";
+import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, PlayCircle, RotateCcw, Trophy } from "lucide-react";
+import { User, RotateCcw, Hash, Zap, ShieldAlert, ArrowRightLeft } from "lucide-react";
+import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
   roster: Player[];
-  onAction: (type: "Run" | "Pass" | "Touchdown" | "Turnover", player?: Player) => void;
+  onAction: (type: PlayType, yards: number, player?: Player) => void;
   onUndo: () => void;
   canUndo: boolean;
 }
 
 const ActionPanel: React.FC<ActionPanelProps> = ({ roster, onAction, onUndo, canUndo }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [pendingAction, setPendingAction] = useState<PlayType | null>(null);
+  const [yardage, setYardage] = useState("");
+
+  const handleActionClick = (type: PlayType) => {
+    if (type === "Incomplete" || type === "Turnover") {
+      onAction(type, 0, selectedPlayer || undefined);
+      reset();
+    } else {
+      setPendingAction(type);
+    }
+  };
+
+  const handleConfirmYardage = () => {
+    const yards = parseInt(yardage) || 0;
+    if (pendingAction) {
+      onAction(pendingAction, yards, selectedPlayer || undefined);
+      reset();
+    }
+  };
+
+  const reset = () => {
+    setSelectedPlayer(null);
+    setPendingAction(null);
+    setYardage("");
+  };
+
+  if (pendingAction) {
+    return (
+      <YardageInput 
+        value={yardage}
+        onChange={setYardage}
+        onConfirm={handleConfirmYardage}
+        onCancel={() => setPendingAction(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-bold flex items-center gap-2">
-          <User className="w-5 h-5 text-primary" />
-          Select Player
+        <h3 className="text-sm font-black uppercase tracking-tighter flex items-center gap-2 text-slate-500">
+          <Hash className="w-4 h-4" />
+          Play Entry
         </h3>
         <Button 
-          variant="outline" 
+          variant="ghost" 
           size="sm" 
           onClick={onUndo} 
           disabled={!canUndo}
-          className="gap-2"
+          className="h-8 text-[10px] font-bold uppercase tracking-wider gap-1 hover:bg-red-50 hover:text-red-600"
         >
-          <RotateCcw className="w-4 h-4" />
+          <RotateCcw className="w-3 h-3" />
           Undo
         </Button>
       </div>
 
-      <ScrollArea className="h-48 rounded-md border p-2 bg-slate-50">
-        <div className="grid grid-cols-2 gap-2">
-          {roster.map((player) => (
-            <Button
-              key={player.id}
-              variant={selectedPlayer?.id === player.id ? "default" : "outline"}
-              className="justify-start h-12 px-3"
-              onClick={() => setSelectedPlayer(player)}
-            >
-              <span className="font-bold mr-2 text-xs bg-slate-200 text-slate-700 px-1.5 py-0.5 rounded">
-                #{player.number}
-              </span>
-              <span className="truncate text-sm">{player.name}</span>
-            </Button>
-          ))}
-        </div>
-      </ScrollArea>
+      <div className="bg-slate-100 rounded-xl p-1 flex gap-1">
+        <ScrollArea className="h-40 w-full">
+          <div className="grid grid-cols-2 gap-1 p-1">
+            {roster.map((player) => (
+              <Button
+                key={player.id}
+                variant={selectedPlayer?.id === player.id ? "default" : "ghost"}
+                className={`justify-start h-10 px-2 text-xs font-bold transition-all ${
+                  selectedPlayer?.id === player.id ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"
+                }`}
+                onClick={() => setSelectedPlayer(player)}
+              >
+                <span className="w-6 text-left opacity-50">#{player.number}</span>
+                <span className="truncate">{player.name}</span>
+              </Button>
+            ))}
+          </div>
+        </ScrollArea>
+      </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <Button 
-          size="lg" 
-          className="h-16 text-lg font-bold gap-2 bg-blue-600 hover:bg-blue-700"
-          onClick={() => {
-            onAction("Pass", selectedPlayer || undefined);
-            setSelectedPlayer(null);
-          }}
+          className="h-14 font-black uppercase tracking-tighter bg-blue-600 hover:bg-blue-700"
+          onClick={() => handleActionClick("Pass")}
         >
-          <PlayCircle className="w-6 h-6" />
           Pass
         </Button>
         <Button 
-          size="lg" 
-          className="h-16 text-lg font-bold gap-2 bg-emerald-600 hover:bg-emerald-700"
-          onClick={() => {
-            onAction("Run", selectedPlayer || undefined);
-            setSelectedPlayer(null);
-          }}
+          className="h-14 font-black uppercase tracking-tighter bg-emerald-600 hover:bg-emerald-700"
+          onClick={() => handleActionClick("Run")}
         >
-          <PlayCircle className="w-6 h-6" />
           Run
         </Button>
         <Button 
-          size="lg" 
-          variant="secondary"
-          className="h-16 text-lg font-bold gap-2"
-          onClick={() => {
-            onAction("Touchdown", selectedPlayer || undefined);
-            setSelectedPlayer(null);
-          }}
+          variant="outline"
+          className="h-14 font-black uppercase tracking-tighter border-2"
+          onClick={() => handleActionClick("Incomplete")}
         >
-          <Trophy className="w-6 h-6 text-amber-500" />
-          TD
+          Inc
+        </Button>
+        
+        <Button 
+          variant="secondary"
+          className="h-12 text-[10px] font-black uppercase tracking-widest"
+          onClick={() => handleActionClick("Sack")}
+        >
+          Sack
         </Button>
         <Button 
-          size="lg" 
-          variant="destructive"
-          className="h-16 text-lg font-bold gap-2"
-          onClick={() => {
-            onAction("Turnover");
-            setSelectedPlayer(null);
-          }}
+          variant="secondary"
+          className="h-12 text-[10px] font-black uppercase tracking-widest"
+          onClick={() => handleActionClick("Penalty")}
         >
-          Turnover
+          Penalty
+        </Button>
+        <Button 
+          variant="secondary"
+          className="h-12 text-[10px] font-black uppercase tracking-widest"
+          onClick={() => handleActionClick("Fumble")}
+        >
+          Fumble
+        </Button>
+
+        <Button 
+          className="h-14 col-span-2 font-black uppercase tracking-tighter bg-amber-500 hover:bg-amber-600 text-slate-900"
+          onClick={() => handleActionClick("Touchdown")}
+        >
+          <Zap className="w-4 h-4 mr-2" />
+          Touchdown
+        </Button>
+        <Button 
+          variant="destructive"
+          className="h-14 font-black uppercase tracking-tighter"
+          onClick={() => handleActionClick("Turnover")}
+        >
+          <ArrowRightLeft className="w-4 h-4 mr-2" />
+          TO
         </Button>
       </div>
     </div>

@@ -5,18 +5,21 @@ import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle, Flag } from "lucide-react";
+import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle, Flag, RefreshCw } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
   homeRoster: Player[];
   onAction: (type: PlayType, yards: number, player?: Player, receiver?: Player) => void;
   onUndo: () => void;
+  onSwitchPossession: () => void;
   canUndo: boolean;
   isHomeOffense: boolean;
 }
 
-const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo, canUndo, isHomeOffense }) => {
+const ActionPanel: React.FC<ActionPanelProps> = ({ 
+  homeRoster, onAction, onUndo, onSwitchPossession, canUndo, isHomeOffense 
+}) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedReceiver, setSelectedReceiver] = useState<Player | null>(null);
   const [pendingAction, setPendingAction] = useState<PlayType | null>(null);
@@ -151,20 +154,29 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
             {isHomeOffense ? "Offense Mode" : "Defense Mode"}
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-1">
           <Button 
             variant="ghost" 
-            size="sm" 
+            size="icon" 
+            onClick={onSwitchPossession}
+            className="h-8 w-8 text-slate-400 hover:text-blue-600"
+            title="Switch Possession"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </Button>
+          <Button 
+            variant="ghost" 
+            size="icon" 
             onClick={onUndo} 
             disabled={!canUndo} 
-            className="h-8 text-[10px] font-black uppercase tracking-widest gap-2"
+            className="h-8 w-8 text-slate-400 hover:text-red-600"
+            title="Undo Last Play"
           >
-            <RotateCcw className="w-3 h-3" /> Undo
+            <RotateCcw className="w-4 h-4" />
           </Button>
         </div>
       </div>
 
-      {/* Prominent Penalty Flag Button */}
       <Button 
         onClick={() => handleActionClick("Penalty")}
         className="w-full h-14 bg-amber-400 hover:bg-amber-500 text-amber-950 font-black uppercase tracking-widest gap-3 shadow-lg shadow-amber-100 border-b-4 border-amber-600 active:border-b-0 active:translate-y-1 transition-all"

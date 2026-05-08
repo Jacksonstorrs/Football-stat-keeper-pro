@@ -10,14 +10,16 @@ import GameClock from "@/components/GameClock";
 import TeamStats from "@/components/TeamStats";
 import WinProbability from "@/components/WinProbability";
 import DriveTracker from "@/components/DriveTracker";
+import TopPerformers from "@/components/TopPerformers";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
@@ -29,11 +31,11 @@ const Index = () => {
   const { teamCode, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [history, setHistory] = useState<GameState[]>([]);
+  const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
   const [gameState, setGameState] = useState<GameState>(() => {
     const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
     if (savedGame) return JSON.parse(savedGame);
     
-    // Load custom roster if available
     const savedTeams = localStorage.getItem(`${TEAM_STORAGE_KEY}_${teamCode}`);
     const teamData = savedTeams ? JSON.parse(savedTeams) : null;
     
@@ -68,6 +70,14 @@ const Index = () => {
         away: teamData?.awayRoster || [] 
       }
     };
+  });
+
+  const [manualAdjust, setManualAdjust] = useState({
+    down: gameState.down,
+    distance: gameState.distance,
+    yardLine: gameState.yardLine,
+    homeScore: gameState.homeScore,
+    awayScore: gameState.awayScore
   });
 
   const clockInterval = useRef<NodeJS.Timeout | null>(null);
@@ -121,7 +131,6 @@ const Index = () => {
         }
       };
 
-      // ONLY track stats for Home Team players
       if (player && newState.roster.home.some(p => p.id === player.id)) {
         initStats(player.id);
         const s = newState.stats[player.id];
@@ -217,6 +226,24 @@ const Index = () => {
 
   const handleUndo = () => { if (history.length > 0) { setGameState(history[0]); setHistory(prev => prev.slice(1)); showSuccess("Play undone"); } };
 
+  const handleSwitchPossession = () => {
+    setGameState(prev => {
+      const newState = { ...prev };
+      startNewDrive(newState, prev.possession === "Home" ? "Away" : "Home", prev.yardLine);
+      return newState;
+    });
+    showSuccess("Possession switched");
+  };
+
+  const handleManualAdjust = () => {
+    setGameState(prev => ({
+      ...prev,
+      ...manualAdjust
+    }));
+    setIsAdjustDialogOpen(false);
+    showSuccess("Game state adjusted");
+  };
+
   const currentDrive = gameState.drives.find(d => d.id === gameState.currentDriveId);
 
   return (
@@ -232,6 +259,35 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Dialog open={isAdjustDialogOpen} onOpenChange={setIsAdjustDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="h-12 font-black uppercase text-[10px] gap-2">
+                  <SlidersHorizontal className="w-4 h-4" /> Adjust State
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Manual Game Adjustment</DialogTitle></DialogHeader>
+                <div className="grid grid-cols-2 gap-4 py-4">
+                  <div className="space-y-2">
+                    <Label>Down</Label>
+                    <Input type="number" value={manualAdjust.down} onChange={e => setManualAdjust({...manualAdjust, down: parseInt(e.target.value) || 1})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Distance</Label>
+                    <Input type="number" value={manualAdjust.distance} onChange={e => setManualAdjust({...manualAdjust, distance: parseInt(e.target.value) || 10})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Yard Line (0-100)</Label>
+                    <Input type="number" value={manualAdjust.yardLine} onChange={e => setManualAdjust({...manualAdjust, yardLine: parseInt(e.target.value) || 25})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Home Score</Label>
+                    <Input type="number" value={manualAdjust.homeScore} onChange={e => setManualAdjust({...manualAdjust, homeScore: parseInt(e.target.value) || 0})} />
+                  </div>
+                </div>
+                <DialogFooter><Button onClick={handleManualAdjust} className="w-full bg-slate-900">Apply Changes</Button></DialogFooter>
+              </DialogContent>
+            </Dialog>
             <GameClock seconds={gameState.gameClock} isRunning={gameState.isClockRunning} onToggle={() => isAdmin && setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))} onReset={() => isAdmin && setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))} onNextQuarter={() => isAdmin && setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1) }))} quarter={gameState.quarter} />
           </div>
         </div>
@@ -239,6 +295,9 @@ const Index = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           <div className="lg:col-span-8 space-y-8">
             <Scoreboard homeTeam={gameState.homeTeam} awayTeam={gameState.awayTeam} homeScore={gameState.homeScore} awayScore={gameState.awayScore} homeTimeouts={gameState.homeTimeouts} awayTimeouts={gameState.awayTimeouts} possession={gameState.possession} down={gameState.down} distance={gameState.distance} quarter={gameState.quarter} />
+            
+            <TopPerformers stats={gameState.stats} roster={gameState.roster} />
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <Card className="md:col-span-2 p-8 bg-white border-none shadow-sm">
                 <FootballField ballPosition={gameState.yardLine} possession={gameState.possession} onSpotBall={(y) => isAdmin && setGameState(prev => ({ ...prev, yardLine: y }))} />
@@ -257,6 +316,7 @@ const Index = () => {
                   homeRoster={gameState.roster.home}
                   onAction={handleAction}
                   onUndo={handleUndo}
+                  onSwitchPossession={handleSwitchPossession}
                   canUndo={history.length > 0}
                   isHomeOffense={gameState.possession === "Home"}
                 />

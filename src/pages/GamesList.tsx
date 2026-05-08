@@ -2,6 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import { GameState } from "@/types/football";
+import { Card } from "@/components<dyad-write path="src/pages/GamesList.tsx" description="Fix invalid icon import by replacing CloudSync with RefreshCw">
+"use client";
+
+import React, { useEffect, useState } from 'react';
+import { GameState } from "@/types/football";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Trophy, Calendar, ArrowLeft, Plus, Trash2, ChevronRight, MapPin, Clock, CheckCircle2, CloudSync } from "lucide-react";
+import { Trophy, Calendar, ArrowLeft, Plus, Trash2, ChevronRight, MapPin, Clock, CheckCircle2, RefreshCw } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -175,7 +180,7 @@ const GamesList = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">Season Schedule</h1>
-                {isSyncing && <CloudSync className="w-4 h-4 text-blue-500 animate-spin" />}
+                {isSyncing && <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />}
               </div>
               <p className="text-slate-500 text-sm">Syncing for Team: <span className="font-bold text-blue-600">{teamCode}</span></p>
             </div>

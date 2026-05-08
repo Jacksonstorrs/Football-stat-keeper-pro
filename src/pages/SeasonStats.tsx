@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { 
   Trophy, ArrowLeft, Download, TrendingUp, Users, 
-  Target, Zap, Shield, ChevronRight, Filter, CloudSync
+  Target, Zap, Shield, ChevronRight, Filter, RefreshCw
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";

@@ -1,10 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { QueryClient, QueryClientProvider } from "@tanstack/react```tsx
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
@@ -50,13 +46,3 @@ const App = () => (
 );
 
 export default App;
-```
-
----
-
-<dyad-write path="src/main.tsx" description="Update main.tsx to remove duplicate providers (already in App.tsx)">
-import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-import "./globals.css";
-
-createRoot(document.getElementById("root")!).render(<App />);

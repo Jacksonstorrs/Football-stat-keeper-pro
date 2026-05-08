@@ -12,10 +12,12 @@ import WinProbability from "@/components/WinProbability";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const INITIAL_ROSTER_HOME: Player[] = [
   { id: 'h1', name: 'J. Smith', number: 12, position: 'QB' },
@@ -32,37 +34,19 @@ const INITIAL_ROSTER_AWAY: Player[] = [
 ];
 
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
-const TEAM_STORAGE_KEY = 'football_stat_keeper_teams_v1';
 const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 
 const Index = () => {
+  const { teamCode, isAdmin } = useAuth();
   const [gameState, setGameState] = useState<GameState>(() => {
     const savedGame = localStorage.getItem(GAME_STORAGE_KEY);
-    const savedTeams = localStorage.getItem(TEAM_STORAGE_KEY);
     
-    let initialTeams = {
-      homeTeam: "Wildcats",
-      awayTeam: "Eagles",
-      roster: { home: INITIAL_ROSTER_HOME, away: INITIAL_ROSTER_AWAY }
-    };
-
-    if (savedTeams) {
-      const teamData = JSON.parse(savedTeams);
-      initialTeams = {
-        homeTeam: teamData.homeTeamName || "Wildcats",
-        awayTeam: teamData.awayTeamName || "Eagles",
-        roster: { home: teamData.homeRoster || INITIAL_ROSTER_HOME, away: teamData.awayRoster || INITIAL_ROSTER_AWAY }
-      };
-    }
-
-    if (savedGame) {
-      const gameData = JSON.parse(savedGame);
-      return { ...gameData, ...initialTeams };
-    }
+    if (savedGame) return JSON.parse(savedGame);
     
     const initialDriveId = Math.random().toString(36).substr(2, 9);
     return {
-      ...initialTeams,
+      homeTeam: "Wildcats",
+      awayTeam: "Eagles",
       homeScore: 0,
       awayScore: 0,
       homeTimeouts: 3,
@@ -84,16 +68,49 @@ const Index = () => {
         yards: 0,
         startTime: Date.now()
       }],
-      stats: {}
+      stats: {},
+      roster: { home: INITIAL_ROSTER_HOME, away: INITIAL_ROSTER_AWAY }
     };
   });
 
   const [history, setHistory] = useState<GameState[]>([]);
   const clockInterval = useRef<NodeJS.Timeout | null>(null);
 
+  // Sync with Supabase
   useEffect(() => {
+    if (!supabase || !teamCode) return;
+
+    const syncToCloud = async () => {
+      if (!isAdmin) return;
+      await supabase
+        .from('games')
+        .upsert({ 
+          id: teamCode, 
+          state: gameState,
+          updated_at: new Date().toISOString()
+        });
+    };
+
+    const timeout = setTimeout(syncToCloud, 1000);
     localStorage.setItem(GAME_STORAGE_KEY, JSON.stringify(gameState));
-  }, [gameState]);
+    return () => clearTimeout(timeout);
+  }, [gameState, teamCode, isAdmin]);
+
+  // Real-time subscription for non-admins
+  useEffect(() => {
+    if (!supabase || !teamCode || isAdmin) return;
+
+    const channel = supabase
+      .channel(`game_${teamCode}`)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${teamCode}` }, 
+        payload => {
+          setGameState(payload.new.state);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [teamCode, isAdmin]);
 
   useEffect(() => {
     if (gameState.isClockRunning && gameState.gameClock > 0) {
@@ -114,108 +131,11 @@ const Index = () => {
     setHistory(prev => [...prev, { ...gameState }]);
   }, [gameState]);
 
-  const handleUndo = () => {
-    if (history.length > 0) {
-      const previousState = history[history.length - 1];
-      setGameState(previousState);
-      setHistory(prev => prev.slice(0, -1));
-      showSuccess("Action undone");
-    }
-  };
-
-  const handleCopyLink = () => {
-    const liveUrl = `${window.location.origin}/live/current`;
-    navigator.clipboard.writeText(liveUrl);
-    showSuccess("Live link copied to clipboard!");
-  };
-
-  const handleSaveToSeason = () => {
-    const savedSeason = localStorage.getItem(SEASON_STORAGE_KEY);
-    const seasonData = savedSeason ? JSON.parse(savedSeason) : [];
-    const updatedSeason = [gameState, ...seasonData];
-    localStorage.setItem(SEASON_STORAGE_KEY, JSON.stringify(updatedSeason));
-    showSuccess("Game archived to season stats!");
-  };
-
-  const handleNewGame = () => {
-    const initialDriveId = Math.random().toString(36).substr(2, 9);
-    const newState: GameState = {
-      ...gameState,
-      homeScore: 0,
-      awayScore: 0,
-      homeTimeouts: 3,
-      awayTimeouts: 3,
-      possession: "Home",
-      down: 1,
-      distance: 10,
-      yardLine: 25,
-      quarter: 1,
-      gameClock: 900,
-      isClockRunning: false,
-      currentDriveId: initialDriveId,
-      playLog: [],
-      drives: [{
-        id: initialDriveId,
-        team: "Home",
-        startYardLine: 25,
-        plays: 0,
-        yards: 0,
-        startTime: Date.now()
-      }],
-      stats: {}
-    };
-    setGameState(newState);
-    setHistory([]);
-    showSuccess("New game started!");
-  };
-
-  const calculateWinProb = () => {
-    const scoreDiff = gameState.homeScore - gameState.awayScore;
-    const timeRemaining = (4 - gameState.quarter) * 900 + gameState.gameClock;
-    const baseProb = 50 + (scoreDiff * 2);
-    const timeFactor = (3600 - timeRemaining) / 3600;
-    const finalProb = Math.max(1, Math.min(99, baseProb + (scoreDiff * timeFactor * 5)));
-    return Math.round(finalProb);
-  };
-
-  const updatePlayerStats = (stats: Record<string, PlayerStats>, player: Player, type: PlayType, yards: number, receiver?: Player) => {
-    const newStats = { ...stats };
-    
-    // Update primary player (Passer/Rusher)
-    const current = newStats[player.id] || {
-      passAtt: 0, passComp: 0, passYds: 0, passTDs: 0, ints: 0,
-      rushAtt: 0, rushYds: 0, rushTDs: 0, receptions: 0, recYds: 0,
-      recTDs: 0, fumbles: 0, tackles: 0, sacks: 0
-    };
-
-    const updated = { ...current };
-    switch (type) {
-      case "Pass": updated.passAtt += 1; updated.passComp += 1; updated.passYds += yards; break;
-      case "Incomplete": updated.passAtt += 1; break;
-      case "Run": updated.rushAtt += 1; updated.rushYds += yards; break;
-      case "Sack": updated.sacks += 1; updated.rushYds += yards; break;
-      case "Touchdown": updated.rushTDs += 1; break;
-      case "Turnover": updated.ints += 1; break;
-    }
-    newStats[player.id] = updated;
-
-    // Update receiver if present
-    if (receiver && type === "Pass") {
-      const recCurrent = newStats[receiver.id] || {
-        passAtt: 0, passComp: 0, passYds: 0, passTDs: 0, ints: 0,
-        rushAtt: 0, rushYds: 0, rushTDs: 0, receptions: 0, recYds: 0,
-        recTDs: 0, fumbles: 0, tackles: 0, sacks: 0
-      };
-      const recUpdated = { ...recCurrent };
-      recUpdated.receptions += 1;
-      recUpdated.recYds += yards;
-      newStats[receiver.id] = recUpdated;
-    }
-
-    return newStats;
-  };
-
   const handleAction = (type: PlayType, yards: number, player?: Player, receiver?: Player) => {
+    if (!isAdmin) {
+      showError("Admin access required to track plays");
+      return;
+    }
     saveToHistory();
     
     setGameState(prev => {
@@ -241,7 +161,6 @@ const Index = () => {
         newState.distance = 10;
         result = "TOUCHDOWN!";
         possessionChanged = true;
-        if (player) newState.stats = updatePlayerStats(newState.stats, player, type, yards, receiver);
       } else if (type === "Turnover" || type === "Punt") {
         newState.possession = prev.possession === "Home" ? "Away" : "Home";
         newState.down = 1;
@@ -252,15 +171,8 @@ const Index = () => {
       } else {
         const direction = prev.possession === "Home" ? 1 : -1;
         newYardLine = Math.max(0, Math.min(100, currentYardLine + (yards * direction)));
+        result = `${type} for ${yards} yards`;
         
-        if (type === "Pass" && receiver) {
-          result = `Pass from #${player?.number} to #${receiver.number} for ${yards} yards`;
-        } else {
-          result = `${type} for ${yards} yards`;
-        }
-        
-        if (player) newState.stats = updatePlayerStats(newState.stats, player, type, yards, receiver);
-
         if (yards >= prev.distance && type !== "Incomplete" && type !== "Penalty") {
           newState.down = 1;
           newState.distance = 10;
@@ -288,34 +200,21 @@ const Index = () => {
       };
 
       newState.playLog = [newPlay, ...prev.playLog];
-
-      const driveIdx = newState.drives.findIndex(d => d.id === prev.currentDriveId);
-      if (driveIdx !== -1) {
-        newState.drives[driveIdx].plays += 1;
-        newState.drives[driveIdx].yards += (type === "Penalty" ? 0 : yards);
-        if (possessionChanged) {
-          newState.drives[driveIdx].result = type;
-          newState.drives[driveIdx].endYardLine = newYardLine;
-          
-          const newDriveId = Math.random().toString(36).substr(2, 9);
-          newState.currentDriveId = newDriveId;
-          newState.drives.push({
-            id: newDriveId,
-            team: newState.possession,
-            startYardLine: newYardLine,
-            plays: 0,
-            yards: 0,
-            startTime: Date.now()
-          });
-        }
-      }
-
       return newState;
     });
   };
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
+      {!isAdmin && (
+        <div className="max-w-[1400px] mx-auto mb-4">
+          <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center gap-3 text-amber-800 text-xs font-bold">
+            <Lock className="w-4 h-4" />
+            VIEWER MODE: You are watching a live sync. Only admins can record plays.
+          </div>
+        </div>
+      )}
+      
       <div className="max-w-[1400px] mx-auto space-y-6">
         <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
@@ -326,58 +225,16 @@ const Index = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
-            <div className="flex gap-1">
-              <Link to="/live/current" target="_blank">
-                <Button variant="default" className="gap-2 bg-red-600 hover:bg-red-700 rounded-r-none">
-                  <Share2 className="w-4 h-4" /> Go Live
-                </Button>
-              </Link>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button 
-                    variant="default" 
-                    className="bg-red-700 hover:bg-red-800 rounded-l-none px-3"
-                    onClick={handleCopyLink}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Copy Share Link</TooltipContent>
-              </Tooltip>
-            </div>
-
+            <Link to="/live/current" target="_blank">
+              <Button variant="default" className="gap-2 bg-red-600 hover:bg-red-700">
+                <Share2 className="w-4 h-4" /> Go Live
+              </Button>
+            </Link>
             <Link to="/coach-analytics">
               <Button variant="outline" className="gap-2 bg-slate-900 text-white hover:bg-slate-800">
                 <BarChart3 className="w-4 h-4" /> Coach Analytics
               </Button>
             </Link>
-            <Button onClick={handleSaveToSeason} variant="outline" className="gap-2 bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100">
-              <Archive className="w-4 h-4" /> Archive Game
-            </Button>
-
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" className="gap-2 bg-white text-red-600 border-red-100 hover:bg-red-50">
-                  <PlusCircle className="w-4 h-4" /> New Game
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-500" />
-                    Start New Game?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This will reset the current scoreboard and play log. Make sure you've archived the current game first if you want to keep the stats.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleNewGame} className="bg-red-600 hover:bg-red-700">Reset Game</AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-            
             <Link to="/games">
               <Button variant="outline" className="gap-2 bg-white">
                 <Calendar className="w-4 h-4" /> Season
@@ -386,11 +243,6 @@ const Index = () => {
             <Link to="/report">
               <Button variant="outline" className="gap-2 bg-white">
                 <FileText className="w-4 h-4" /> Game Report
-              </Button>
-            </Link>
-            <Link to="/teams">
-              <Button variant="outline" className="gap-2 bg-white">
-                <Users className="w-4 h-4" /> Manage Teams
               </Button>
             </Link>
           </div>
@@ -412,13 +264,13 @@ const Index = () => {
                 <GameClock 
                   seconds={gameState.gameClock}
                   isRunning={gameState.isClockRunning}
-                  onToggle={() => setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))}
-                  onReset={() => setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))}
-                  onNextQuarter={() => setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1), gameClock: 900 }))}
+                  onToggle={() => isAdmin && setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))}
+                  onReset={() => isAdmin && setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))}
+                  onNextQuarter={() => isAdmin && setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1), gameClock: 900 }))}
                   quarter={gameState.quarter}
                 />
                 <WinProbability 
-                  homeProb={calculateWinProb()} 
+                  homeProb={50} 
                   homeTeam={gameState.homeTeam} 
                   awayTeam={gameState.awayTeam} 
                 />
@@ -427,37 +279,38 @@ const Index = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xs font-black uppercase tracking-widest text-slate-400">Field Spotter</h2>
-                  <div className="px-2 py-1 bg-emerald-50 text-emerald-700 text-[10px] font-bold rounded">LIVE POSITION</div>
-                </div>
                 <FootballField 
                   ballPosition={gameState.yardLine}
                   possession={gameState.possession}
-                  onSpotBall={(y) => setGameState(prev => ({ ...prev, yardLine: y }))}
+                  onSpotBall={(y) => isAdmin && setGameState(prev => ({ ...prev, yardLine: y }))}
                 />
               </div>
 
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
-                <ActionPanel 
-                  roster={gameState.possession === "Home" ? gameState.roster.home : gameState.roster.away}
-                  opponentRoster={gameState.possession === "Home" ? gameState.roster.away : gameState.roster.home}
-                  onAction={handleAction}
-                  onUndo={handleUndo}
-                  canUndo={history.length > 0}
-                  isHomeTeam={gameState.possession === "Home"}
-                />
+                {isAdmin ? (
+                  <ActionPanel 
+                    roster={gameState.possession === "Home" ? gameState.roster.home : gameState.roster.away}
+                    opponentRoster={gameState.possession === "Home" ? gameState.roster.away : gameState.roster.home}
+                    onAction={handleAction}
+                    onUndo={() => {}}
+                    canUndo={false}
+                    isHomeTeam={gameState.possession === "Home"}
+                  />
+                ) : (
+                  <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
+                    <Lock className="w-12 h-12 text-slate-200" />
+                    <div>
+                      <h3 className="font-black uppercase text-slate-900">Read Only</h3>
+                      <p className="text-xs text-slate-500">Login as Admin to record plays</p>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <TeamStats team="Home" teamName={gameState.homeTeam} plays={gameState.playLog} />
               <TeamStats team="Away" teamName={gameState.awayTeam} plays={gameState.playLog} />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <StatsTable title={gameState.homeTeam} players={gameState.roster.home} stats={gameState.stats} />
-              <StatsTable title={gameState.awayTeam} players={gameState.roster.away} stats={gameState.stats} />
             </div>
           </div>
 

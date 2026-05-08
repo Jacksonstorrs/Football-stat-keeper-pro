@@ -12,12 +12,13 @@ import WinProbability from "@/components/WinProbability";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2 } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
+import Header from "@/components/Header";
 
 const INITIAL_ROSTER_HOME: Player[] = [
   { id: 'h1', name: 'J. Smith', number: 12, position: 'QB' },
@@ -73,7 +74,6 @@ const Index = () => {
     };
   });
 
-  const [history, setHistory] = useState<GameState[]>([]);
   const clockInterval = useRef<NodeJS.Timeout | null>(null);
 
   // Sync Live Game to Supabase
@@ -204,7 +204,6 @@ const Index = () => {
   const finalizeGame = async () => {
     if (!isAdmin) return;
     
-    // 1. Fetch current season
     let seasonData = [];
     if (supabase) {
       const { data } = await supabase.from('seasons').select('data').eq('id', teamCode).single();
@@ -214,71 +213,89 @@ const Index = () => {
       if (saved) seasonData = JSON.parse(saved);
     }
 
-    // 2. Add current game to season
     const finalizedGame = { ...gameState, status: 'completed' };
     const updatedSeason = [finalizedGame, ...seasonData];
 
-    // 3. Save Season
     if (supabase) {
       await supabase.from('seasons').upsert({ id: teamCode, data: updatedSeason, updated_at: new Date().toISOString() });
     }
     localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(updatedSeason));
 
-    // 4. Clear Live Game
     localStorage.removeItem(`${GAME_STORAGE_KEY}_${teamCode}`);
     showSuccess("Game finalized and saved to season!");
     navigate("/games");
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-6">
-      {!isAdmin && (
-        <div className="max-w-[1400px] mx-auto mb-4">
-          <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center gap-3 text-amber-800 text-xs font-bold">
-            <Lock className="w-4 h-4" />
-            VIEWER MODE: Syncing live with Team {teamCode}.
-          </div>
-        </div>
-      )}
+    <div className="min-h-screen bg-slate-50/50">
+      <Header />
       
-      <div className="max-w-[1400px] mx-auto space-y-6">
-        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+      <main className="max-w-[1400px] mx-auto p-4 md:p-8 space-y-8">
+        {/* Top Bar */}
+        <div className="flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-4">
-            <h1 className="text-2xl font-black tracking-tighter text-slate-900">STAT KEEPER PRO</h1>
-            <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
-              <Radio className="w-3 h-3 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Live Sync</span>
+            <Link to="/">
+              <Button variant="ghost" size="icon" className="rounded-full hover:bg-white hover:shadow-sm">
+                <ArrowLeft className="w-5 h-5" />
+              </Button>
+            </Link>
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <h1 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Live Tracker</h1>
+                <div className="flex items-center gap-2 px-2 py-0.5 bg-red-50 text-red-600 rounded-full border border-red-100">
+                  <Radio className="w-3 h-3 animate-pulse" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Live Session</span>
+                </div>
+              </div>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Team Code: {teamCode}</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2 justify-center">
+          
+          <div className="flex flex-wrap gap-3 justify-center">
             {isAdmin && (
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="default" className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                  <Button className="h-11 px-6 bg-emerald-600 hover:bg-emerald-700 text-white font-black uppercase tracking-widest gap-2 shadow-lg shadow-emerald-100 transition-all active:scale-95">
                     <CheckCircle2 className="w-4 h-4" /> Finalize Game
                   </Button>
                 </AlertDialogTrigger>
-                <AlertDialogContent>
+                <AlertDialogContent className="rounded-3xl">
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Finalize this game?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will end the live session and save all stats to the season dashboard.
+                    <AlertDialogTitle className="text-xl font-black uppercase tracking-tight">Finalize this game?</AlertDialogTitle>
+                    <AlertDialogDescription className="text-slate-500 font-medium">
+                      This will end the live session and archive all statistics to the season dashboard. This action cannot be undone.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={finalizeGame} className="bg-emerald-600">Finalize & Save</AlertDialogAction>
+                  <AlertDialogFooter className="gap-2">
+                    <AlertDialogCancel className="rounded-xl font-bold uppercase tracking-widest text-[10px]">Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={finalizeGame} className="bg-emerald-600 hover:bg-emerald-700 rounded-xl font-bold uppercase tracking-widest text-[10px]">Finalize & Save</AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
               </AlertDialog>
             )}
-            <Link to="/games"><Button variant="outline" className="bg-white">Season</Button></Link>
-            <Link to="/report"><Button variant="outline" className="bg-white">Report</Button></Link>
+            <Link to="/report">
+              <Button variant="outline" className="h-11 px-6 bg-white border-slate-200 font-black uppercase tracking-widest text-[10px] gap-2 hover:bg-slate-50">
+                <FileText className="w-4 h-4" /> Report
+              </Button>
+            </Link>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-          <div className="lg:col-span-8 space-y-6">
+        {!isAdmin && (
+          <div className="bg-amber-50 border border-amber-100 p-4 rounded-2xl flex items-center gap-4 text-amber-800">
+            <div className="w-10 h-10 bg-amber-100 rounded-xl flex items-center justify-center">
+              <Lock className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-xs font-black uppercase tracking-widest">Viewer Mode Active</p>
+              <p className="text-[10px] font-medium opacity-80">You are viewing live updates for Team {teamCode}. Controls are disabled.</p>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-8 space-y-8">
             <Scoreboard 
               homeTeam={gameState.homeTeam} awayTeam={gameState.awayTeam}
               homeScore={gameState.homeScore} awayScore={gameState.awayScore}
@@ -287,15 +304,22 @@ const Index = () => {
               distance={gameState.distance} quarter={gameState.quarter}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              <Card className="p-8 bg-white border-none shadow-sm">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400">Field Position</h3>
+                  <div className="text-[10px] font-black text-slate-900 uppercase tracking-widest">
+                    Ball at: {gameState.yardLine > 50 ? `Away ${100 - gameState.yardLine}` : `Home ${gameState.yardLine}`}
+                  </div>
+                </div>
                 <FootballField 
                   ballPosition={gameState.yardLine}
                   possession={gameState.possession}
                   onSpotBall={(y) => isAdmin && setGameState(prev => ({ ...prev, yardLine: y }))}
                 />
-              </div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+              </Card>
+
+              <Card className="p-8 bg-white border-none shadow-sm">
                 {isAdmin ? (
                   <ActionPanel 
                     roster={gameState.possession === "Home" ? gameState.roster.home : gameState.roster.away}
@@ -307,26 +331,32 @@ const Index = () => {
                   />
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
-                    <Lock className="w-12 h-12 text-slate-200" />
-                    <p className="text-xs text-slate-500 font-bold uppercase">Read Only Mode</p>
+                    <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200">
+                      <Lock className="w-8 h-8" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">Read Only</p>
+                      <p className="text-[10px] text-slate-400 font-medium mt-1">Waiting for admin updates...</p>
+                    </div>
                   </div>
                 )}
-              </div>
+              </Card>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
               <TeamStats team="Home" teamName={gameState.homeTeam} plays={gameState.playLog} />
               <TeamStats team="Away" teamName={gameState.awayTeam} plays={gameState.playLog} />
             </div>
           </div>
 
+          {/* Sidebar */}
           <div className="lg:col-span-4">
-            <div className="sticky top-6 h-[calc(100vh-8rem)]">
+            <div className="sticky top-24 h-[calc(100vh-10rem)]">
               <PlayLog plays={gameState.playLog} />
             </div>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 };

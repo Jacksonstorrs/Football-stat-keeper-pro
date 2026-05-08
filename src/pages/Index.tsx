@@ -29,13 +29,6 @@ const INITIAL_ROSTER_HOME: Player[] = [
   { id: 'h4', name: 'D. Jones', number: 15, position: 'WR' },
 ];
 
-const INITIAL_ROSTER_AWAY: Player[] = [
-  { id: 'a1', name: 'K. Murray', number: 1, position: 'QB' },
-  { id: 'a2', name: 'C. Johnson', number: 33, position: 'RB' },
-  { id: 'a3', name: 'L. Fitz', number: 11, position: 'WR' },
-  { id: 'a4', name: 'A. Green', number: 18, position: 'WR' },
-];
-
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 
@@ -50,7 +43,7 @@ const Index = () => {
     const initialDriveId = Math.random().toString(36).substr(2, 9);
     return {
       homeTeam: "Wildcats",
-      awayTeam: "Eagles",
+      awayTeam: "Opponent",
       homeScore: 0,
       awayScore: 0,
       homeTimeouts: 3,
@@ -73,7 +66,7 @@ const Index = () => {
         startTime: Date.now()
       }],
       stats: {},
-      roster: { home: INITIAL_ROSTER_HOME, away: INITIAL_ROSTER_AWAY }
+      roster: { home: INITIAL_ROSTER_HOME, away: [] }
     };
   });
 
@@ -128,7 +121,8 @@ const Index = () => {
         }
       };
 
-      if (player) {
+      // ONLY track stats for Home Team players
+      if (player && INITIAL_ROSTER_HOME.some(p => p.id === player.id)) {
         initStats(player.id);
         const s = newState.stats[player.id];
         if (type === "Pass") { 
@@ -234,7 +228,7 @@ const Index = () => {
             <Link to="/"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button></Link>
             <div>
               <h1 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Home Team Command</h1>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tracking: {gameState.homeTeam}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DakStats Workflow Active</p>
             </div>
           </div>
           <div className="flex items-center gap-4">

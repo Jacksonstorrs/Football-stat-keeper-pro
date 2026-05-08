@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy } from "lucide-react";
+import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
@@ -20,7 +20,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedReceiver, setSelectedReceiver] = useState<Player | null>(null);
   const [pendingAction, setPendingAction] = useState<PlayType | null>(null);
-  const [step, setStep] = useState<"player" | "tdType" | "receiver" | "yards">("player");
+  const [step, setStep] = useState<"player" | "tdType" | "receiver" | "yards" | "penalty">("player");
   const [yardage, setYardage] = useState("");
 
   const handleActionClick = (type: PlayType) => {
@@ -33,6 +33,9 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
     } else if (type === "Pass") {
       setPendingAction(type);
       setStep("receiver");
+    } else if (type === "Penalty") {
+      setPendingAction(type);
+      setStep("penalty");
     } else {
       setPendingAction(type);
       setStep("yards");
@@ -105,6 +108,27 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
     );
   }
 
+  if (step === "penalty") {
+    return (
+      <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-black uppercase tracking-widest text-red-500">Penalty Yardage</h3>
+          <Button variant="ghost" size="sm" onClick={() => setStep("player")} className="text-[10px] font-black uppercase tracking-widest">
+            <ArrowLeft className="w-3 h-3 mr-1" /> Back
+          </Button>
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          {[5, 10, 15].map(y => (
+            <Button key={y} variant="outline" className="h-16 font-black text-lg" onClick={() => { setYardage(y.toString()); setStep("yards"); }}>
+              {y} YDS
+            </Button>
+          ))}
+        </div>
+        <Button variant="secondary" className="w-full h-12 font-black uppercase text-[10px]" onClick={() => setStep("yards")}>Custom Yardage</Button>
+      </div>
+    );
+  }
+
   if (step === "yards") {
     return <YardageInput value={yardage} onChange={setYardage} onConfirm={handleConfirmYardage} onCancel={() => setStep("player")} />;
   }
@@ -162,7 +186,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
           <div className="grid grid-cols-3 gap-2 pt-2 border-t">
             <Button variant="outline" className="h-10 text-[9px] font-black uppercase" onClick={() => handleActionClick("Field Goal")}>FG</Button>
             <Button variant="outline" className="h-10 text-[9px] font-black uppercase" onClick={() => handleActionClick("Punt")}>Punt</Button>
-            <Button variant="outline" className="h-10 text-[9px] font-black uppercase" onClick={() => handleActionClick("Kickoff")}>Kick</Button>
+            <Button variant="outline" className="h-10 text-[9px] font-black uppercase" onClick={() => handleActionClick("Penalty")}>Penalty</Button>
           </div>
         </TabsContent>
 
@@ -177,7 +201,9 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
             <Button variant="secondary" className="h-14 font-black uppercase text-[10px] gap-2" onClick={() => handleActionClick("Interception")}>
               <Target className="w-4 h-4" /> INT
             </Button>
-            <Button variant="secondary" className="h-14 font-black uppercase text-[10px]" onClick={() => handleActionClick("Penalty")}>Penalty</Button>
+            <Button variant="secondary" className="h-14 font-black uppercase text-[10px] gap-2" onClick={() => handleActionClick("Penalty")}>
+              <AlertCircle className="w-4 h-4" /> Penalty
+            </Button>
           </div>
           <div className="pt-2 border-t">
             <Button variant="outline" className="w-full h-10 text-[9px] font-black uppercase" onClick={() => handleActionClick("Kickoff")}>Opponent Kickoff</Button>

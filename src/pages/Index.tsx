@@ -22,15 +22,8 @@ import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
 
-const INITIAL_ROSTER_HOME: Player[] = [
-  { id: 'h1', name: 'J. Smith', number: 12, position: 'QB' },
-  { id: 'h2', name: 'M. Brown', number: 24, position: 'RB' },
-  { id: 'h3', name: 'T. Wilson', number: 88, position: 'WR' },
-  { id: 'h4', name: 'D. Jones', number: 15, position: 'WR' },
-];
-
+const TEAM_STORAGE_KEY = 'football_stat_keeper_teams_v1';
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
-const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 
 const Index = () => {
   const { teamCode, isAdmin } = useAuth();
@@ -40,10 +33,14 @@ const Index = () => {
     const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
     if (savedGame) return JSON.parse(savedGame);
     
+    // Load custom roster if available
+    const savedTeams = localStorage.getItem(`${TEAM_STORAGE_KEY}_${teamCode}`);
+    const teamData = savedTeams ? JSON.parse(savedTeams) : null;
+    
     const initialDriveId = Math.random().toString(36).substr(2, 9);
     return {
-      homeTeam: "Wildcats",
-      awayTeam: "Opponent",
+      homeTeam: teamData?.homeTeamName || "Wildcats",
+      awayTeam: teamData?.awayTeamName || "Opponent",
       homeScore: 0,
       awayScore: 0,
       homeTimeouts: 3,
@@ -66,7 +63,10 @@ const Index = () => {
         startTime: Date.now()
       }],
       stats: {},
-      roster: { home: INITIAL_ROSTER_HOME, away: [] }
+      roster: { 
+        home: teamData?.homeRoster || [], 
+        away: teamData?.awayRoster || [] 
+      }
     };
   });
 
@@ -122,7 +122,7 @@ const Index = () => {
       };
 
       // ONLY track stats for Home Team players
-      if (player && INITIAL_ROSTER_HOME.some(p => p.id === player.id)) {
+      if (player && newState.roster.home.some(p => p.id === player.id)) {
         initStats(player.id);
         const s = newState.stats[player.id];
         if (type === "Pass") { 

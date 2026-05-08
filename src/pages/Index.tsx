@@ -12,9 +12,10 @@ import WinProbability from "@/components/WinProbability";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2 } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 const INITIAL_ROSTER_HOME: Player[] = [
   { id: 'h1', name: 'J. Smith', number: 12, position: 'QB' },
@@ -120,6 +121,12 @@ const Index = () => {
       setHistory(prev => prev.slice(0, -1));
       showSuccess("Action undone");
     }
+  };
+
+  const handleCopyLink = () => {
+    const liveUrl = `${window.location.origin}/live/current`;
+    navigator.clipboard.writeText(liveUrl);
+    showSuccess("Live link copied to clipboard!");
   };
 
   const handleSaveToSeason = () => {
@@ -296,11 +303,26 @@ const Index = () => {
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
-            <Link to="/live/current">
-              <Button variant="default" className="gap-2 bg-red-600 hover:bg-red-700">
-                <Share2 className="w-4 h-4" /> Go Live
-              </Button>
-            </Link>
+            <div className="flex gap-1">
+              <Link to="/live/current" target="_blank">
+                <Button variant="default" className="gap-2 bg-red-600 hover:bg-red-700 rounded-r-none">
+                  <Share2 className="w-4 h-4" /> Go Live
+                </Button>
+              </Link>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button 
+                    variant="default" 
+                    className="bg-red-700 hover:bg-red-800 rounded-l-none px-3"
+                    onClick={handleCopyLink}
+                  >
+                    <Copy className="w-4 h-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>Copy Share Link</TooltipContent>
+              </Tooltip>
+            </div>
+
             <Link to="/coach-analytics">
               <Button variant="outline" className="gap-2 bg-slate-900 text-white hover:bg-slate-800">
                 <BarChart3 className="w-4 h-4" /> Coach Analytics

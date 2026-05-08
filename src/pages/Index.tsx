@@ -12,7 +12,7 @@ import WinProbability from "@/components/WinProbability";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -125,8 +125,6 @@ const Index = () => {
   const handleSaveToSeason = () => {
     const savedSeason = localStorage.getItem(SEASON_STORAGE_KEY);
     const seasonData = savedSeason ? JSON.parse(savedSeason) : [];
-    
-    // Add current game to season
     const updatedSeason = [gameState, ...seasonData];
     localStorage.setItem(SEASON_STORAGE_KEY, JSON.stringify(updatedSeason));
     showSuccess("Game archived to season stats!");
@@ -289,7 +287,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="max-w-[1400px] mx-auto space-y-6">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-black tracking-tighter text-slate-900">STAT KEEPER PRO</h1>
             <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
@@ -297,7 +295,17 @@ const Index = () => {
               <span className="text-[10px] font-black uppercase tracking-widest">Live Sync Active</span>
             </div>
           </div>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2 justify-center">
+            <Link to="/live/current">
+              <Button variant="default" className="gap-2 bg-red-600 hover:bg-red-700">
+                <Share2 className="w-4 h-4" /> Go Live
+              </Button>
+            </Link>
+            <Link to="/coach-analytics">
+              <Button variant="outline" className="gap-2 bg-slate-900 text-white hover:bg-slate-800">
+                <BarChart3 className="w-4 h-4" /> Coach Analytics
+              </Button>
+            </Link>
             <Button onClick={handleSaveToSeason} variant="outline" className="gap-2 bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100">
               <Archive className="w-4 h-4" /> Archive Game
             </Button>
@@ -340,9 +348,6 @@ const Index = () => {
                 <Users className="w-4 h-4" /> Manage Teams
               </Button>
             </Link>
-            <Button variant="ghost" size="icon">
-              <Settings className="w-5 h-5" />
-            </Button>
           </div>
         </div>
 

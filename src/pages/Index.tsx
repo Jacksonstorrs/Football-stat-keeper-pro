@@ -11,7 +11,7 @@ import TeamStats from "@/components/TeamStats";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText, Share2, Radio } from "lucide-react";
+import { Settings, Users, FileText, Share2, Radio, Save, Calendar } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const INITIAL_ROSTER_HOME: Player[] = [
@@ -30,6 +30,7 @@ const INITIAL_ROSTER_AWAY: Player[] = [
 
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 const TEAM_STORAGE_KEY = 'football_stat_keeper_teams_v1';
+const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 
 const Index = () => {
   const [gameState, setGameState] = useState<GameState>(() => {
@@ -119,6 +120,13 @@ const Index = () => {
     }
   };
 
+  const handleSaveGame = () => {
+    const savedSeason = localStorage.getItem(SEASON_STORAGE_KEY);
+    const season = savedSeason ? JSON.parse(savedSeason) : [];
+    localStorage.setItem(SEASON_STORAGE_KEY, JSON.stringify([gameState, ...season]));
+    showSuccess("Game saved to season archive!");
+  };
+
   const updatePlayerStats = (stats: Record<string, PlayerStats>, player: Player, type: PlayType, yards: number) => {
     const current = stats[player.id] || {
       passAtt: 0, passComp: 0, passYds: 0, passTDs: 0, ints: 0,
@@ -170,7 +178,6 @@ const Index = () => {
         newState.distance = 10;
         result = type;
         possessionChanged = true;
-        // Reset yard line for punt/turnover (simplified)
         newYardLine = newState.possession === "Home" ? 25 : 75;
       } else if (type === "Field Goal") {
         isScoringPlay = true;
@@ -260,9 +267,14 @@ const Index = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" className="gap-2 bg-white" onClick={handleShare}>
-              <Share2 className="w-4 h-4" /> Share Live
+            <Button variant="default" className="gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={handleSaveGame}>
+              <Save className="w-4 h-4" /> Save Game
             </Button>
+            <Link to="/games">
+              <Button variant="outline" className="gap-2 bg-white">
+                <Calendar className="w-4 h-4" /> Season
+              </Button>
+            </Link>
             <Link to="/report">
               <Button variant="outline" className="gap-2 bg-white">
                 <FileText className="w-4 h-4" /> Game Report

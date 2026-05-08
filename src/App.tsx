@@ -7,6 +7,8 @@ import Index from "./pages/Index";
 import Teams from "./pages/Teams";
 import GameReport from "./pages/GameReport";
 import LiveGame from "./pages/LiveGame";
+import GamesList from "./pages/GamesList";
+import SeasonStats from "./pages/SeasonStats";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +24,8 @@ const App = () => (
           <Route path="/teams" element={<Teams />} />
           <Route path="/report" element={<GameReport />} />
           <Route path="/live/:gameId" element={<LiveGame />} />
+          <Route path="/games" element={<GamesList />} />
+          <Route path="/season-stats" element={<SeasonStats />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

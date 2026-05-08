@@ -12,7 +12,7 @@ import WinProbability from "@/components/WinProbability";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive } from "lucide-react";
 import { Link } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
@@ -48,9 +48,9 @@ const Index = () => {
     if (savedTeams) {
       const teamData = JSON.parse(savedTeams);
       initialTeams = {
-        homeTeam: teamData.homeTeamName,
-        awayTeam: teamData.awayTeamName,
-        roster: { home: teamData.homeRoster, away: teamData.awayRoster }
+        homeTeam: teamData.homeTeamName || "Wildcats",
+        awayTeam: teamData.awayTeamName || "Eagles",
+        roster: { home: teamData.homeRoster || INITIAL_ROSTER_HOME, away: teamData.awayRoster || INITIAL_ROSTER_AWAY }
       };
     }
 
@@ -120,6 +120,16 @@ const Index = () => {
       setHistory(prev => prev.slice(0, -1));
       showSuccess("Action undone");
     }
+  };
+
+  const handleSaveToSeason = () => {
+    const savedSeason = localStorage.getItem(SEASON_STORAGE_KEY);
+    const seasonData = savedSeason ? JSON.parse(savedSeason) : [];
+    
+    // Add current game to season
+    const updatedSeason = [gameState, ...seasonData];
+    localStorage.setItem(SEASON_STORAGE_KEY, JSON.stringify(updatedSeason));
+    showSuccess("Game archived to season stats!");
   };
 
   const handleNewGame = () => {
@@ -288,6 +298,10 @@ const Index = () => {
             </div>
           </div>
           <div className="flex gap-2">
+            <Button onClick={handleSaveToSeason} variant="outline" className="gap-2 bg-emerald-50 text-emerald-700 border-emerald-100 hover:bg-emerald-100">
+              <Archive className="w-4 h-4" /> Archive Game
+            </Button>
+
             <AlertDialog>
               <AlertDialogTrigger asChild>
                 <Button variant="outline" className="gap-2 bg-white text-red-600 border-red-100 hover:bg-red-50">
@@ -301,7 +315,7 @@ const Index = () => {
                     Start New Game?
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    This will reset the current scoreboard and play log. Make sure you've saved the current game to the season archive first.
+                    This will reset the current scoreboard and play log. Make sure you've archived the current game first if you want to keep the stats.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

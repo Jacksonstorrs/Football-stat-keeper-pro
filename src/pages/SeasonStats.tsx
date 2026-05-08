@@ -32,84 +32,99 @@ const SeasonStats = () => {
   useEffect(() => {
     const saved = localStorage.getItem(SEASON_STORAGE_KEY);
     if (saved) {
-      const gameData: any[] = JSON.parse(saved);
-      setGames(gameData);
+      try {
+        const gameData: any[] = JSON.parse(saved);
+        setGames(gameData);
 
-      const stats: Record<string, any> = {};
-      const standings: Record<string, TeamRecord> = {};
+        const stats: Record<string, any> = {};
+        const standings: Record<string, TeamRecord> = {};
 
-      const initTeam = (name: string) => {
-        if (!standings[name]) {
-          standings[name] = { name, wins: 0, losses: 0, ties: 0, pf: 0, pa: 0 };
-        }
-      };
-
-      gameData.forEach(game => {
-        const isLive = 'currentDriveId' in game;
-        const homeTeam = game.homeTeam;
-        const awayTeam = game.awayTeam;
-        const homeScore = game.homeScore || 0;
-        const awayScore = game.awayScore || 0;
-
-        initTeam(homeTeam);
-        initTeam(awayTeam);
-
-        // Update Standings
-        if (isLive || game.status === 'completed') {
-          standings[homeTeam].pf += homeScore;
-          standings[homeTeam].pa += awayScore;
-          standings[awayTeam].pf += awayScore;
-          standings[awayTeam].pa += homeScore;
-
-          if (homeScore > awayScore) {
-            standings[homeTeam].wins += 1;
-            standings[awayTeam].losses += 1;
-          } else if (awayScore > homeScore) {
-            standings[awayTeam].wins += 1;
-            standings[homeTeam].losses += 1;
-          } else {
-            standings[homeTeam].ties += 1;
-            standings[awayTeam].ties += 1;
+        const initTeam = (name: string) => {
+          if (name && !standings[name]) {
+            standings[name] = { name, wins: 0, losses: 0, ties: 0, pf: 0, pa: 0 };
           }
-        }
+        };
 
-        // Process Player Stats (only for live-tracked games)
-        if (isLive && game.stats && game.roster) {
-          const allPlayers = [
-            ...game.roster.home.map((p: any) => ({ ...p, team: homeTeam })), 
-            ...game.roster.away.map((p: any) => ({ ...p, team: awayTeam }))
-          ];
-          
-          allPlayers.forEach(player => {
-            if (!stats[player.id]) {
-              stats[player.id] = {
-                id: player.id,
-                name: player.name,
-                number: player.number,
-                team: player.team,
-                passAtt: 0, passComp: 0, passYds: 0, passTDs: 0,
-                rushAtt: 0, rushYds: 0, rushTDs: 0,
-                gamesPlayed: 0
-              };
+        gameData.forEach(game => {
+          if (!game) return;
+
+          const isLive = 'currentDriveId' in game;
+          const homeTeam = game.homeTeam || "Unknown Home";
+          const awayTeam = game.awayTeam || "Unknown Away";
+          const homeScore = typeof game.homeScore === 'number' ? game.homeScore : 0;
+          const awayScore = typeof game.awayScore === 'number' ? game.awayScore : 0;
+
+          initTeam(homeTeam);
+          initTeam(awayTeam);
+
+          // Update Standings
+          if (isLive || game.status === 'completed') {
+            if (standings[homeTeam]) {
+              standings[homeTeam].pf += homeScore;
+              standings[homeTeam].pa += awayScore;
             }
+            if (standings[awayTeam]) {
+              standings[awayTeam].pf += awayScore;
+              standings[awayTeam].pa += homeScore;
+            }
+
+            if (homeScore > awayScore) {
+              if (standings[homeTeam]) standings[homeTeam].wins += 1;
+              if (standings[awayTeam]) standings[awayTeam].losses += 1;
+            } else if (awayScore > homeScore) {
+              if (standings[awayTeam]) standings[awayTeam].wins += 1;
+              if (standings[homeTeam]) standings[homeTeam].losses += 1;
+            } else {
+              if (standings[homeTeam]) standings[homeTeam].ties += 1;
+              if (standings[awayTeam]) standings[awayTeam].ties += 1;
+            }
+          }
+
+          // Process Player Stats (only for live-tracked games)
+          if (isLive && game.stats && game.roster) {
+            const homeRoster = Array.isArray(game.roster.home) ? game.roster.home : [];
+            const awayRoster = Array.isArray(game.roster.away) ? game.roster.away : [];
             
-            const gameStats = game.stats[player.id];
-            if (gameStats) {
-              stats[player.id].passAtt += gameStats.passAtt || 0;
-              stats[player.id].passComp += gameStats.passComp || 0;
-              stats[player.id].passYds += gameStats.passYds || 0;
-              stats[player.id].passTDs += gameStats.passTDs || 0;
-              stats[player.id].rushAtt += gameStats.rushAtt || 0;
-              stats[player.id].rushYds += gameStats.rushYds || 0;
-              stats[player.id].rushTDs += gameStats.rushTDs || 0;
-              stats[player.id].gamesPlayed += 1;
-            }
-          });
-        }
-      });
+            const allPlayers = [
+              ...homeRoster.map((p: any) => ({ ...p, team: homeTeam })), 
+              ...awayRoster.map((p: any) => ({ ...p, team: awayTeam }))
+            ];
+            
+            allPlayers.forEach(player => {
+              if (!player || !player.id) return;
 
-      setAggregatedStats(stats);
-      setTeamStandings(standings);
+              if (!stats[player.id]) {
+                stats[player.id] = {
+                  id: player.id,
+                  name: player.name || "Unknown Player",
+                  number: player.number || 0,
+                  team: player.team,
+                  passAtt: 0, passComp: 0, passYds: 0, passTDs: 0,
+                  rushAtt: 0, rushYds: 0, rushTDs: 0,
+                  gamesPlayed: 0
+                };
+              }
+              
+              const gameStats = game.stats[player.id];
+              if (gameStats) {
+                stats[player.id].passAtt += gameStats.passAtt || 0;
+                stats[player.id].passComp += gameStats.passComp || 0;
+                stats[player.id].passYds += gameStats.passYds || 0;
+                stats[player.id].passTDs += gameStats.passTDs || 0;
+                stats[player.id].rushAtt += gameStats.rushAtt || 0;
+                stats[player.id].rushYds += gameStats.rushYds || 0;
+                stats[player.id].rushTDs += gameStats.rushTDs || 0;
+                stats[player.id].gamesPlayed += 1;
+              }
+            });
+          }
+        });
+
+        setAggregatedStats(stats);
+        setTeamStandings(standings);
+      } catch (e) {
+        console.error("Failed to parse season data", e);
+      }
     }
   }, []);
 

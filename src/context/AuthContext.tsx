@@ -7,8 +7,9 @@ interface AuthContextProps {
   user: any | null;
   loading: boolean;
   teamCode: string | null;
-  signIn: (email: string, password: string, teamCode: string) => Promise<void>;
-  signUp: (email: string, password: string, teamCode: string, teamName: string) => Promise<void>;
+  // teamCode is now optional
+  signIn: (email: string, password: string, code?: string) => Promise<void>;
+  signUp: (email: string, password: string, code: string, teamName: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -56,24 +57,31 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []);
 
-  const signIn = async (email: string, password: string, code: string) => {
+  // Sign‑in: team code is optional; if provided, verify it exists
+  const signIn = async (email: string, password: string, code?: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
 
-    // Verify team code exists
-    const { data, error: teamErr } = await supabase
-      .from("teams")
-      .select("code")
-      .eq("code", code)
-      .single();
+    if (code) {
+      // Verify team code exists (but do not enforce uniqueness)
+      const { data, error: teamErr } = await supabase
+        .from("teams")
+        .select("code")
+        .eq("code", code)
+        .single();
 
-    if (teamErr || !data) {
-      await supabase.auth.signOut();
-      throw new Error("Invalid team code");
+      if (teamErr || !data) {
+        await supabase.auth.signOut();
+        throw new Error("Invalid team code");
+      }
+
+      localStorage.setItem("teamCode", code);
+      setTeamCode(code);
+    } else {
+      // No code supplied – just clear any previous code
+      localStorage.removeItem("teamCode");
+      setTeamCode(null);
     }
-
-    localStorage.setItem("teamCode", code);
-    setTeamCode(code);
   };
 
   const signUp = async (
@@ -82,14 +90,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     code: string,
     teamName: string
   ) => {
-    // Create team if it doesn't exist
+    // Create team if it doesn't exist; otherwise reject duplicate code
     const { data: existing, error: existingErr } = await supabase
       .from("teams")
       .select("code")
       .eq("code", code)
       .single();
 
-    if (!existing && !existingErr) {
+    if (existing && !existingErr) {
       // Team already exists – reject duplicate code
       throw new Error("Team code already taken");
     }

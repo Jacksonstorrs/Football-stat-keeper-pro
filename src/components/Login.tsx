@@ -22,7 +22,9 @@ const Login = () => {
     setLoading(true);
     setError(null);
     try {
-      await signIn(email, password, teamCode);
+      // Pass teamCode only if the user entered something
+      const code = teamCode.trim() ? teamCode.trim() : undefined;
+      await signIn(email, password, code);
       navigate("/dashboard");
     } catch (err: any) {
       setError(err.message ?? "Login failed");
@@ -60,10 +62,9 @@ const Login = () => {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Team Code</label>
+            <label className="block text-sm font-medium mb-1">Team Code (optional)</label>
             <Input
               type="text"
-              required
               value={teamCode}
               onChange={(e) => setTeamCode(e.target.value)}
               placeholder="e.g., WILDCATS2024"

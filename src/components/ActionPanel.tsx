@@ -4,17 +4,19 @@ import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { User, RotateCcw, Hash, Zap, ShieldAlert, ArrowRightLeft } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Hash, RotateCcw, Zap, ArrowRightLeft, Shield, Target } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
   roster: Player[];
+  opponentRoster: Player[];
   onAction: (type: PlayType, yards: number, player?: Player) => void;
   onUndo: () => void;
   canUndo: boolean;
 }
 
-const ActionPanel: React.FC<ActionPanelProps> = ({ roster, onAction, onUndo, canUndo }) => {
+const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAction, onUndo, canUndo }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [pendingAction, setPendingAction] = useState<PlayType | null>(null);
   const [yardage, setYardage] = useState("");
@@ -72,85 +74,77 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, onAction, onUndo, can
         </Button>
       </div>
 
-      <div className="bg-slate-100 rounded-xl p-1 flex gap-1">
-        <ScrollArea className="h-40 w-full">
-          <div className="grid grid-cols-2 gap-1 p-1">
-            {roster.map((player) => (
-              <Button
-                key={player.id}
-                variant={selectedPlayer?.id === player.id ? "default" : "ghost"}
-                className={`justify-start h-10 px-2 text-xs font-bold transition-all ${
-                  selectedPlayer?.id === player.id ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"
-                }`}
-                onClick={() => setSelectedPlayer(player)}
-              >
-                <span className="w-6 text-left opacity-50">#{player.number}</span>
-                <span className="truncate">{player.name}</span>
-              </Button>
-            ))}
+      <Tabs defaultValue="offense" className="w-full">
+        <TabsList className="grid w-full grid-cols-2 mb-4">
+          <TabsTrigger value="offense" className="text-[10px] font-black uppercase">Offense</TabsTrigger>
+          <TabsTrigger value="defense" className="text-[10px] font-black uppercase">Defense</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="offense" className="space-y-4">
+          <div className="bg-slate-100 rounded-xl p-1">
+            <ScrollArea className="h-32 w-full">
+              <div className="grid grid-cols-2 gap-1 p-1">
+                {roster.map((player) => (
+                  <Button
+                    key={player.id}
+                    variant={selectedPlayer?.id === player.id ? "default" : "ghost"}
+                    className={`justify-start h-10 px-2 text-xs font-bold transition-all ${
+                      selectedPlayer?.id === player.id ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"
+                    }`}
+                    onClick={() => setSelectedPlayer(player)}
+                  >
+                    <span className="w-6 text-left opacity-50">#{player.number}</span>
+                    <span className="truncate">{player.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
           </div>
-        </ScrollArea>
-      </div>
 
-      <div className="grid grid-cols-3 gap-2">
-        <Button 
-          className="h-14 font-black uppercase tracking-tighter bg-blue-600 hover:bg-blue-700"
-          onClick={() => handleActionClick("Pass")}
-        >
-          Pass
-        </Button>
-        <Button 
-          className="h-14 font-black uppercase tracking-tighter bg-emerald-600 hover:bg-emerald-700"
-          onClick={() => handleActionClick("Run")}
-        >
-          Run
-        </Button>
-        <Button 
-          variant="outline"
-          className="h-14 font-black uppercase tracking-tighter border-2"
-          onClick={() => handleActionClick("Incomplete")}
-        >
-          Inc
-        </Button>
-        
-        <Button 
-          variant="secondary"
-          className="h-12 text-[10px] font-black uppercase tracking-widest"
-          onClick={() => handleActionClick("Sack")}
-        >
-          Sack
-        </Button>
-        <Button 
-          variant="secondary"
-          className="h-12 text-[10px] font-black uppercase tracking-widest"
-          onClick={() => handleActionClick("Penalty")}
-        >
-          Penalty
-        </Button>
-        <Button 
-          variant="secondary"
-          className="h-12 text-[10px] font-black uppercase tracking-widest"
-          onClick={() => handleActionClick("Fumble")}
-        >
-          Fumble
-        </Button>
+          <div className="grid grid-cols-3 gap-2">
+            <Button className="h-12 font-black uppercase tracking-tighter bg-blue-600 hover:bg-blue-700" onClick={() => handleActionClick("Pass")}>Pass</Button>
+            <Button className="h-12 font-black uppercase tracking-tighter bg-emerald-600 hover:bg-emerald-700" onClick={() => handleActionClick("Run")}>Run</Button>
+            <Button variant="outline" className="h-12 font-black uppercase tracking-tighter border-2" onClick={() => handleActionClick("Incomplete")}>Inc</Button>
+            <Button className="h-12 col-span-2 font-black uppercase tracking-tighter bg-amber-500 hover:bg-amber-600 text-slate-900" onClick={() => handleActionClick("Touchdown")}>
+              <Zap className="w-4 h-4 mr-2" /> TD
+            </Button>
+            <Button variant="destructive" className="h-12 font-black uppercase tracking-tighter" onClick={() => handleActionClick("Turnover")}>TO</Button>
+          </div>
+        </TabsContent>
 
-        <Button 
-          className="h-14 col-span-2 font-black uppercase tracking-tighter bg-amber-500 hover:bg-amber-600 text-slate-900"
-          onClick={() => handleActionClick("Touchdown")}
-        >
-          <Zap className="w-4 h-4 mr-2" />
-          Touchdown
-        </Button>
-        <Button 
-          variant="destructive"
-          className="h-14 font-black uppercase tracking-tighter"
-          onClick={() => handleActionClick("Turnover")}
-        >
-          <ArrowRightLeft className="w-4 h-4 mr-2" />
-          TO
-        </Button>
-      </div>
+        <TabsContent value="defense" className="space-y-4">
+          <div className="bg-slate-100 rounded-xl p-1">
+            <ScrollArea className="h-32 w-full">
+              <div className="grid grid-cols-2 gap-1 p-1">
+                {opponentRoster.map((player) => (
+                  <Button
+                    key={player.id}
+                    variant={selectedPlayer?.id === player.id ? "default" : "ghost"}
+                    className={`justify-start h-10 px-2 text-xs font-bold transition-all ${
+                      selectedPlayer?.id === player.id ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-white"
+                    }`}
+                    onClick={() => setSelectedPlayer(player)}
+                  >
+                    <span className="w-6 text-left opacity-50">#{player.number}</span>
+                    <span className="truncate">{player.name}</span>
+                  </Button>
+                ))}
+              </div>
+            </ScrollArea>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <Button variant="secondary" className="h-12 font-black uppercase tracking-tighter gap-2" onClick={() => handleActionClick("Sack")}>
+              <Shield className="w-4 h-4" /> Sack
+            </Button>
+            <Button variant="secondary" className="h-12 font-black uppercase tracking-tighter gap-2" onClick={() => handleActionClick("Fumble")}>
+              <Target className="w-4 h-4" /> Fumble
+            </Button>
+            <Button variant="secondary" className="h-12 font-black uppercase tracking-tighter" onClick={() => handleActionClick("Penalty")}>Penalty</Button>
+            <Button variant="secondary" className="h-12 font-black uppercase tracking-tighter" onClick={() => handleActionClick("Punt")}>Punt</Button>
+          </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 };

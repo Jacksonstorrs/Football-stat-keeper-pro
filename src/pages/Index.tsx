@@ -8,11 +8,13 @@ import PlayLog from "@/components/PlayLog";
 import StatsTable from "@/components/StatsTable";
 import GameClock from "@/components/GameClock";
 import TeamStats from "@/components/TeamStats";
+import WinProbability from "@/components/WinProbability";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText, Share2, Radio, Save, Calendar } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle } from "lucide-react";
 import { Link } from "react-router-dom";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 
 const INITIAL_ROSTER_HOME: Player[] = [
   { id: 'h1', name: 'J. Smith', number: 12, position: 'QB' },
@@ -120,11 +122,45 @@ const Index = () => {
     }
   };
 
-  const handleSaveGame = () => {
-    const savedSeason = localStorage.getItem(SEASON_STORAGE_KEY);
-    const season = savedSeason ? JSON.parse(savedSeason) : [];
-    localStorage.setItem(SEASON_STORAGE_KEY, JSON.stringify([gameState, ...season]));
-    showSuccess("Game saved to season archive!");
+  const handleNewGame = () => {
+    const initialDriveId = Math.random().toString(36).substr(2, 9);
+    const newState: GameState = {
+      ...gameState,
+      homeScore: 0,
+      awayScore: 0,
+      homeTimeouts: 3,
+      awayTimeouts: 3,
+      possession: "Home",
+      down: 1,
+      distance: 10,
+      yardLine: 25,
+      quarter: 1,
+      gameClock: 900,
+      isClockRunning: false,
+      currentDriveId: initialDriveId,
+      playLog: [],
+      drives: [{
+        id: initialDriveId,
+        team: "Home",
+        startYardLine: 25,
+        plays: 0,
+        yards: 0,
+        startTime: Date.now()
+      }],
+      stats: {}
+    };
+    setGameState(newState);
+    setHistory([]);
+    showSuccess("New game started!");
+  };
+
+  const calculateWinProb = () => {
+    const scoreDiff = gameState.homeScore - gameState.awayScore;
+    const timeRemaining = (4 - gameState.quarter) * 900 + gameState.gameClock;
+    const baseProb = 50 + (scoreDiff * 2);
+    const timeFactor = (3600 - timeRemaining) / 3600;
+    const finalProb = Math.max(1, Math.min(99, baseProb + (scoreDiff * timeFactor * 5)));
+    return Math.round(finalProb);
   };
 
   const updatePlayerStats = (stats: Record<string, PlayerStats>, player: Player, type: PlayType, yards: number) => {
@@ -139,8 +175,9 @@ const Index = () => {
       case "Pass": updated.passAtt += 1; updated.passComp += 1; updated.passYds += yards; break;
       case "Incomplete": updated.passAtt += 1; break;
       case "Run": updated.rushAtt += 1; updated.rushYds += yards; break;
-      case "Sack": updated.passAtt += 1; updated.rushYds += yards; break;
+      case "Sack": updated.sacks += 1; updated.rushYds += yards; break;
       case "Touchdown": updated.rushTDs += 1; break;
+      case "Turnover": updated.ints += 1; break;
     }
     return { ...stats, [player.id]: updated };
   };
@@ -177,16 +214,6 @@ const Index = () => {
         newState.down = 1;
         newState.distance = 10;
         result = type;
-        possessionChanged = true;
-        newYardLine = newState.possession === "Home" ? 25 : 75;
-      } else if (type === "Field Goal") {
-        isScoringPlay = true;
-        if (prev.possession === "Home") newState.homeScore += 3;
-        else newState.awayScore += 3;
-        newState.possession = prev.possession === "Home" ? "Away" : "Home";
-        newState.down = 1;
-        newState.distance = 10;
-        result = "FIELD GOAL GOOD!";
         possessionChanged = true;
         newYardLine = newState.possession === "Home" ? 25 : 75;
       } else {
@@ -249,12 +276,6 @@ const Index = () => {
     });
   };
 
-  const handleShare = () => {
-    const url = `${window.location.origin}/live/game-123`;
-    navigator.clipboard.writeText(url);
-    showSuccess("Live link copied to clipboard!");
-  };
-
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="max-w-[1400px] mx-auto space-y-6">
@@ -267,9 +288,29 @@ const Index = () => {
             </div>
           </div>
           <div className="flex gap-2">
-            <Button variant="default" className="gap-2 bg-emerald-600 hover:bg-emerald-700" onClick={handleSaveGame}>
-              <Save className="w-4 h-4" /> Save Game
-            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="gap-2 bg-white text-red-600 border-red-100 hover:bg-red-50">
+                  <PlusCircle className="w-4 h-4" /> New Game
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-500" />
+                    Start New Game?
+                  </AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will reset the current scoreboard and play log. Make sure you've saved the current game to the season archive first.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleNewGame} className="bg-red-600 hover:bg-red-700">Reset Game</AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            
             <Link to="/games">
               <Button variant="outline" className="gap-2 bg-white">
                 <Calendar className="w-4 h-4" /> Season
@@ -303,14 +344,21 @@ const Index = () => {
                   distance={gameState.distance} quarter={gameState.quarter}
                 />
               </div>
-              <GameClock 
-                seconds={gameState.gameClock}
-                isRunning={gameState.isClockRunning}
-                onToggle={() => setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))}
-                onReset={() => setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))}
-                onNextQuarter={() => setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1), gameClock: 900 }))}
-                quarter={gameState.quarter}
-              />
+              <div className="space-y-4">
+                <GameClock 
+                  seconds={gameState.gameClock}
+                  isRunning={gameState.isClockRunning}
+                  onToggle={() => setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))}
+                  onReset={() => setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))}
+                  onNextQuarter={() => setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1), gameClock: 900 }))}
+                  quarter={gameState.quarter}
+                />
+                <WinProbability 
+                  homeProb={calculateWinProb()} 
+                  homeTeam={gameState.homeTeam} 
+                  awayTeam={gameState.awayTeam} 
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -329,6 +377,7 @@ const Index = () => {
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 <ActionPanel 
                   roster={gameState.possession === "Home" ? gameState.roster.home : gameState.roster.away}
+                  opponentRoster={gameState.possession === "Home" ? gameState.roster.away : gameState.roster.home}
                   onAction={handleAction}
                   onUndo={handleUndo}
                   canUndo={history.length > 0}

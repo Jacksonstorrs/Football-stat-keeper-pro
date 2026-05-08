@@ -8,20 +8,34 @@ export interface Player {
 }
 
 export interface PlayerStats {
+  // Passing
   passAtt: number;
   passComp: number;
   passYds: number;
   passTDs: number;
   ints: number;
+  // Rushing
   rushAtt: number;
   rushYds: number;
   rushTDs: number;
+  // Receiving
   receptions: number;
   recYds: number;
   recTDs: number;
-  fumbles: number;
+  // Defense
   tackles: number;
   sacks: number;
+  forcedFumbles: number;
+  defInts: number;
+  // Special Teams
+  fgAtt: number;
+  fgMade: number;
+  punts: number;
+  puntYds: number;
+  kickoffs: number;
+  kickYds: number;
+  // General
+  fumbles: number;
 }
 
 export type PlayType = 
@@ -36,7 +50,8 @@ export type PlayType =
   | "Touchdown" 
   | "Turnover"
   | "Fumble"
-  | "Interception";
+  | "Interception"
+  | "Tackle";
 
 export interface Play {
   id: string;

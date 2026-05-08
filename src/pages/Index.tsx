@@ -41,6 +41,7 @@ const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 const Index = () => {
   const { teamCode, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const [history, setHistory] = useState<GameState[]>([]);
   const [gameState, setGameState] = useState<GameState>(() => {
     const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
     if (savedGame) return JSON.parse(savedGame);
@@ -133,6 +134,9 @@ const Index = () => {
   const handleAction = (type: PlayType, yards: number, player?: Player, receiver?: Player) => {
     if (!isAdmin) return showError("Admin access required");
     
+    // Save current state to history before modifying
+    setHistory(prev => [gameState, ...prev].slice(0, 10));
+
     setGameState(prev => {
       const newState = { ...prev };
       const currentYardLine = prev.yardLine;
@@ -141,33 +145,73 @@ const Index = () => {
       let isFirstDown = false;
       let isScoringPlay = false;
 
-      // Update Stats
-      if (player) {
-        if (!newState.stats[player.id]) {
-          newState.stats[player.id] = {
+      // Initialize stats if missing
+      const initStats = (pId: string) => {
+        if (!newState.stats[pId]) {
+          newState.stats[pId] = {
             passAtt: 0, passComp: 0, passYds: 0, passTDs: 0, ints: 0,
             rushAtt: 0, rushYds: 0, rushTDs: 0, receptions: 0, recYds: 0,
             recTDs: 0, fumbles: 0, tackles: 0, sacks: 0
           };
         }
+      };
+
+      // Update Stats
+      if (player) {
+        initStats(player.id);
         const s = newState.stats[player.id];
-        if (type === "Pass") { s.passAtt += 1; s.passComp += 1; s.passYds += yards; }
+        
+        if (type === "Pass") { 
+          s.passAtt += 1; 
+          s.passComp += 1; 
+          s.passYds += yards; 
+          if (receiver) {
+            initStats(receiver.id);
+            newState.stats[receiver.id].receptions += 1;
+            newState.stats[receiver.id].recYds += yards;
+          }
+        }
         if (type === "Run") { s.rushAtt += 1; s.rushYds += yards; }
         if (type === "Incomplete") { s.passAtt += 1; }
-        if (type === "Touchdown") { s.rushTDs += 1; }
+        if (type === "Sack") { s.sacks += 1; }
+        if (type === "Interception") { s.ints += 1; }
+        if (type === "Fumble") { s.fumbles += 1; }
       }
 
       if (type === "Touchdown") {
         isScoringPlay = true;
-        if (prev.possession === "Home") { newState.homeScore += 7; newYardLine = 65; }
-        else { newState.awayScore += 7; newYardLine = 35; }
+        if (player) {
+          initStats(player.id);
+          if (receiver) {
+            newState.stats[player.id].passTDs += 1;
+            newState.stats[player.id].passYds += yards;
+            initStats(receiver.id);
+            newState.stats[receiver.id].receptions += 1;
+            newState.stats[receiver.id].recYds += yards;
+            newState.stats[receiver.id].recTDs += 1;
+            result = `Pass TD from #${player.number} to #${receiver.number} (${yards} yds)`;
+          } else {
+            newState.stats[player.id].rushTDs += 1;
+            newState.stats[player.id].rushAtt += 1;
+            newState.stats[player.id].rushYds += yards;
+            result = `Rush TD by #${player.number} (${yards} yds)`;
+          }
+        } else {
+          result = "TOUCHDOWN!";
+        }
+
+        if (prev.possession === "Home") { newState.homeScore += 7; }
+        else { newState.awayScore += 7; }
+        
         newState.possession = prev.possession === "Home" ? "Away" : "Home";
-        newState.down = 1; newState.distance = 10;
-        result = "TOUCHDOWN!";
-      } else if (type === "Turnover" || type === "Punt") {
+        newState.down = 1; 
+        newState.distance = 10;
+        newYardLine = newState.possession === "Home" ? 25 : 75;
+      } else if (type === "Turnover" || type === "Punt" || type === "Interception") {
         newState.possession = prev.possession === "Home" ? "Away" : "Home";
-        newState.down = 1; newState.distance = 10;
-        result = type;
+        newState.down = 1; 
+        newState.distance = 10;
+        result = type === "Interception" ? `Interception by #${player?.number}` : type;
         newYardLine = newState.possession === "Home" ? 25 : 75;
       } else {
         const direction = prev.possession === "Home" ? 1 : -1;
@@ -200,6 +244,14 @@ const Index = () => {
       newState.playLog = [newPlay, ...prev.playLog];
       return newState;
     });
+  };
+
+  const handleUndo = () => {
+    if (history.length === 0) return;
+    const previousState = history[0];
+    setGameState(previousState);
+    setHistory(prev => prev.slice(1));
+    showSuccess("Play undone");
   };
 
   const finalizeGame = async () => {
@@ -326,8 +378,8 @@ const Index = () => {
                     roster={gameState.possession === "Home" ? gameState.roster.home : gameState.roster.away}
                     opponentRoster={gameState.possession === "Home" ? gameState.roster.away : gameState.roster.home}
                     onAction={handleAction}
-                    onUndo={() => {}}
-                    canUndo={false}
+                    onUndo={handleUndo}
+                    canUndo={history.length > 0}
                     isHomeTeam={gameState.possession === "Home"}
                   />
                 ) : (

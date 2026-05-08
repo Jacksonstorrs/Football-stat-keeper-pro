@@ -35,13 +35,14 @@ export type PlayType =
   | "Kickoff" 
   | "Touchdown" 
   | "Turnover"
-  | "Fumble";
+  | "Fumble"
+  | "Interception";
 
 export interface Play {
   id: string;
   type: PlayType;
   player?: Player;
-  receiver?: Player; // Added for advanced passing stats
+  receiver?: Player;
   yards: number;
   result: string;
   down: number;
@@ -52,6 +53,7 @@ export interface Play {
   isFirstDown: boolean;
   isScoringPlay: boolean;
   driveId: string;
+  pointsScored?: number;
 }
 
 export interface Drive {

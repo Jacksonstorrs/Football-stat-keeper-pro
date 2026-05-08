@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight } from "lucide-react";
+import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
@@ -21,18 +21,29 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedReceiver, setSelectedReceiver] = useState<Player | null>(null);
   const [pendingAction, setPendingAction] = useState<PlayType | null>(null);
-  const [step, setStep] = useState<"player" | "receiver" | "yards">("player");
+  const [step, setStep] = useState<"player" | "tdType" | "receiver" | "yards">("player");
   const [yardage, setYardage] = useState("");
 
   const handleActionClick = (type: PlayType) => {
     if (type === "Incomplete" || type === "Turnover") {
       onAction(type, 0, selectedPlayer || undefined);
       reset();
-    } else if (type === "Pass" && isHomeTeam) {
+    } else if (type === "Touchdown") {
+      setPendingAction(type);
+      setStep("tdType");
+    } else if (type === "Pass") {
       setPendingAction(type);
       setStep("receiver");
     } else {
       setPendingAction(type);
+      setStep("yards");
+    }
+  };
+
+  const handleTDTypeSelect = (type: "Rush" | "Pass") => {
+    if (type === "Pass") {
+      setStep("receiver");
+    } else {
       setStep("yards");
     }
   };
@@ -58,6 +69,38 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
     setYardage("");
   };
 
+  if (step === "tdType") {
+    return (
+      <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-black uppercase tracking-widest text-amber-500">Touchdown Type</h3>
+            <p className="text-[10px] text-slate-400 font-bold uppercase">Select Method</p>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setStep("player")} className="text-[10px] font-black uppercase tracking-widest hover:bg-slate-100">
+            <ArrowLeft className="w-3 h-3 mr-1" /> Back
+          </Button>
+        </div>
+        <div className="grid grid-cols-2 gap-4">
+          <Button 
+            className="h-24 flex flex-col gap-2 bg-emerald-600 hover:bg-emerald-700 font-black uppercase tracking-widest"
+            onClick={() => handleTDTypeSelect("Rush")}
+          >
+            <Zap className="w-6 h-6" />
+            Rush TD
+          </Button>
+          <Button 
+            className="h-24 flex flex-col gap-2 bg-blue-600 hover:bg-blue-700 font-black uppercase tracking-widest"
+            onClick={() => handleTDTypeSelect("Pass")}
+          >
+            <Target className="w-6 h-6" />
+            Pass TD
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (step === "receiver") {
     return (
       <div className="space-y-6 animate-in fade-in zoom-in duration-300">
@@ -66,7 +109,9 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
             <h3 className="text-sm font-black uppercase tracking-widest text-blue-600">Select Receiver</h3>
             <p className="text-[10px] text-slate-400 font-bold uppercase">Step 2 of 3</p>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setStep("player")} className="text-[10px] font-black uppercase tracking-widest hover:bg-slate-100">Back</Button>
+          <Button variant="ghost" size="sm" onClick={() => setStep(pendingAction === "Touchdown" ? "tdType" : "player")} className="text-[10px] font-black uppercase tracking-widest hover:bg-slate-100">
+            <ArrowLeft className="w-3 h-3 mr-1" /> Back
+          </Button>
         </div>
         <div className="bg-slate-50 rounded-2xl p-2 border border-slate-100">
           <ScrollArea className="h-64 w-full">
@@ -99,7 +144,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
           value={yardage}
           onChange={setYardage}
           onConfirm={handleConfirmYardage}
-          onCancel={() => setStep(pendingAction === "Pass" && isHomeTeam ? "receiver" : "player")}
+          onCancel={() => setStep(selectedReceiver ? "receiver" : "player")}
         />
       </div>
     );
@@ -117,7 +162,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
           size="sm" 
           onClick={onUndo} 
           disabled={!canUndo}
-          className="h-8 text-[10px] font-black uppercase tracking-widest gap-2 hover:bg-red-50 hover:text-red-600 disabled:opacity-30"
+          className="h-8 text-[10px] font-black uppercase tracking-widest gap-2 hover:bg-red-50 hover:text-red-600 disabled:opacity-30 transition-colors"
         >
           <RotateCcw className="w-3 h-3" />
           Undo
@@ -162,6 +207,12 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
             </Button>
             <Button variant="destructive" className="h-14 font-black uppercase tracking-widest shadow-lg shadow-red-100" onClick={() => handleActionClick("Turnover")}>TO</Button>
           </div>
+          
+          <div className="grid grid-cols-3 gap-2">
+            <Button variant="secondary" className="h-10 text-[10px] font-black uppercase tracking-widest bg-slate-100" onClick={() => handleActionClick("Field Goal")}>FG</Button>
+            <Button variant="secondary" className="h-10 text-[10px] font-black uppercase tracking-widest bg-slate-100" onClick={() => handleActionClick("Punt")}>Punt</Button>
+            <Button variant="secondary" className="h-10 text-[10px] font-black uppercase tracking-widest bg-slate-100" onClick={() => handleActionClick("Kickoff")}>Kick</Button>
+          </div>
         </TabsContent>
 
         <TabsContent value="defense" className="space-y-6 animate-in fade-in duration-300">
@@ -191,11 +242,13 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
             <Button variant="secondary" className="h-14 font-black uppercase tracking-widest gap-3 bg-slate-100 hover:bg-slate-200" onClick={() => handleActionClick("Sack")}>
               <Shield className="w-4 h-4" /> Sack
             </Button>
-            <Button variant="secondary" className="h-14 font-black uppercase tracking-widest gap-3 bg-slate-100 hover:bg-slate-200" onClick={() => handleActionClick("Fumble")}>
-              <Target className="w-4 h-4" /> Fumble
+            <Button variant="secondary" className="h-14 font-black uppercase tracking-widest gap-3 bg-slate-100 hover:bg-slate-200" onClick={() => handleActionClick("Interception")}>
+              <Target className="w-4 h-4" /> INT
             </Button>
+            <Button variant="secondary" className="h-14 font-black uppercase tracking-widest gap-3 bg-slate-100 hover:bg-slate-200" onClick={() => handleActionClick("Fumble")}>
+              <Hash className="w-4 h-4" /> Fumble
+            </Hash>
             <Button variant="secondary" className="h-14 font-black uppercase tracking-widest bg-slate-100 hover:bg-slate-200" onClick={() => handleActionClick("Penalty")}>Penalty</Button>
-            <Button variant="secondary" className="h-14 font-black uppercase tracking-widest bg-slate-100 hover:bg-slate-200" onClick={() => handleActionClick("Punt")}>Punt</Button>
           </div>
         </TabsContent>
       </Tabs>

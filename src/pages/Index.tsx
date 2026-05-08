@@ -11,7 +11,7 @@ import TeamStats from "@/components/TeamStats";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users } from "lucide-react";
+import { Settings, Users, FileText } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const INITIAL_ROSTER_HOME: Player[] = [
@@ -236,8 +236,13 @@ const Index = () => {
         <div className="flex justify-between items-center">
           <h1 className="text-2xl font-black tracking-tighter text-slate-900">STAT KEEPER PRO</h1>
           <div className="flex gap-2">
+            <Link to="/report">
+              <Button variant="outline" className="gap-2 bg-white">
+                <FileText className="w-4 h-4" /> Game Report
+              </Button>
+            </Link>
             <Link to="/teams">
-              <Button variant="outline" className="gap-2">
+              <Button variant="outline" className="gap-2 bg-white">
                 <Users className="w-4 h-4" /> Manage Teams
               </Button>
             </Link>

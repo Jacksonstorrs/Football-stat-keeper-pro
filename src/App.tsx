@@ -6,8 +6,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "@/components/Login";
-import Register from "@/components/Register";
 import Dashboard from "@/pages/Dashboard";
+import Index from "@/pages/Index";
 import Teams from "@/pages/Teams";
 import GameReport from "@/pages/GameReport";
 import LiveGame from "@/pages/LiveGame";
@@ -27,9 +27,9 @@ const App = () => (
         <AuthProvider>
           <Routes>
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/tracker" element={<Index />} />
               <Route path="/teams" element={<Teams />} />
               <Route path="/report" element={<GameReport />} />
               <Route path="/live/:gameId" element={<LiveGame />} />

@@ -2,88 +2,61 @@
 
 import React, { useState } from "react";
 import { useAuth } from "@/context/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
+import { Shield } from "lucide-react";
 
 const Login = () => {
-  const { signIn } = useAuth();
+  const { login } = useAuth();
   const navigate = useNavigate();
+  const [code, setCode] = useState("");
 
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [teamCode, setTeamCode] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      // Pass teamCode only if the user entered something
-      const code = teamCode.trim() ? teamCode.trim() : undefined;
-      await signIn(email, password, code);
-      navigate("/dashboard");
-    } catch (err: any) {
-      setError(err.message ?? "Login failed");
-    } finally {
-      setLoading(false);
+    if (code.trim()) {
+      login(code);
+      navigate("/");
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-100">
-      <Card className="w-full max-w-md p-6">
-        <h2 className="text-2xl font-bold mb-4 text-center">School District Login</h2>
-        {error && (
-          <div className="bg-red-100 text-red-800 p-2 rounded mb-4">{error}</div>
-        )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Email</label>
-            <Input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@school.edu"
-            />
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 p-4">
+      <Card className="w-full max-w-md p-8 shadow-xl border-none">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-16 h-16 bg-slate-900 rounded-2xl flex items-center justify-center text-white mb-4 shadow-lg">
+            <Shield className="w-8 h-8" />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Password</label>
-            <Input
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Team Code (optional)</label>
+          <h2 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">Stat Keeper Pro</h2>
+          <p className="text-slate-500 text-sm font-medium">Enter your team access code to begin</p>
+        </div>
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 ml-1">Team Access Code</label>
             <Input
               type="text"
-              value={teamCode}
-              onChange={(e) => setTeamCode(e.target.value)}
-              placeholder="e.g., WILDCATS2024"
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              placeholder="e.g. WILDCATS2024"
+              className="h-14 text-lg font-bold text-center uppercase tracking-widest border-2 focus-visible:ring-slate-900"
             />
           </div>
           <Button
             type="submit"
-            className="w-full"
-            disabled={loading}
+            className="w-full h-14 text-lg font-black uppercase tracking-widest bg-slate-900 hover:bg-slate-800 shadow-lg transition-all active:scale-[0.98]"
           >
-            {loading ? "Signing in…" : "Sign In"}
+            Access Dashboard
           </Button>
         </form>
-        <p className="mt-4 text-center text-sm">
-          No account?{" "}
-          <Link to="/register" className="text-primary underline">
-            Register here
-          </Link>
-        </p>
+        
+        <div className="mt-8 pt-6 border-t text-center">
+          <p className="text-xs text-slate-400 font-medium">
+            Data is saved locally to this browser.
+          </p>
+        </div>
       </Card>
     </div>
   );

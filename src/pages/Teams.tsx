@@ -10,7 +10,7 @@ import { UserPlus, Trash2, Save, ArrowLeft, Shield, Users, Trophy } from "lucide
 import { Link } from "react-router-dom";
 import { showSuccess } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import Header from "@/components/Header";
 
 const STORAGE_KEY = 'football_stat_keeper_teams_v1';
 
@@ -22,53 +22,20 @@ const Teams = () => {
   const [awayRoster, setAwayRoster] = useState<Player[]>([]);
 
   useEffect(() => {
-    if (!teamCode) return;
-    // Load from Supabase
-    const loadTeams = async () => {
-      const { data, error } = await supabase
-        .from('teams')
-        .select('*')
-        .eq('code', teamCode)
-        .single();
-      if (data) {
-        setHomeTeamName(data.home_team_name || "Wildcats");
-        setAwayTeamName(data.away_team_name || "Eagles");
-        setHomeRoster(data.home_roster || []);
-        setAwayRoster(data.away_roster || []);
-      } else {
-        // Fallback to localStorage
-        const saved = localStorage.getItem(STORAGE_KEY);
-        if (saved) {
-          const d = JSON.parse(saved);
-          setHomeTeamName(d.homeTeamName || "Wildcats");
-          setAwayTeamName(d.awayTeamName || "Eagles");
-          setHomeRoster(d.homeRoster || []);
-          setAwayRoster(d.awayRoster || []);
-        }
-      }
-    };
-    loadTeams();
+    const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
+    if (saved) {
+      const d = JSON.parse(saved);
+      setHomeTeamName(d.homeTeamName || "Wildcats");
+      setAwayTeamName(d.awayTeamName || "Eagles");
+      setHomeRoster(d.homeRoster || []);
+      setAwayRoster(d.awayRoster || []);
+    }
   }, [teamCode]);
 
-  const saveTeams = async () => {
-    if (!teamCode) return;
+  const saveTeams = () => {
     const data = { homeTeamName, awayTeamName, homeRoster, awayRoster };
-    // Save to Supabase
-    const { error } = await supabase
-      .from('teams')
-      .update({
-        home_team_name: homeTeamName,
-        away_team_name: awayTeamName,
-        home_roster: homeRoster,
-        away_roster: awayRoster,
-      })
-      .eq('code', teamCode);
-    if (error) {
-      console.error(error);
-      // Fallback to localStorage
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-    }
-    showSuccess("Team data saved successfully");
+    localStorage.setItem(`${STORAGE_KEY}_${teamCode}`, JSON.stringify(data));
+    showSuccess("Team data saved locally");
   };
 
   const addPlayer = (team: 'home' | 'away') => {
@@ -153,8 +120,9 @@ const Teams = () => {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8">
-      <div className="max-w-5xl mx-auto space-y-8">
+    <div className="min-h-screen bg-slate-50">
+      <Header />
+      <main className="max-w-5xl mx-auto p-6 md:p-12 space-y-8">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
             <Link to="/">
@@ -163,19 +131,18 @@ const Teams = () => {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-black tracking-tighter text-slate-900">TEAM MANAGEMENT</h1>
-              <p className="text-slate-500 text-sm">Configure your rosters and team settings</p>
+              <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">Team Management</h1>
+              <p className="text-slate-500 text-sm font-medium">Configure rosters for {teamCode}</p>
             </div>
           </div>
-          <div className="flex gap-2">
-            <Button onClick={saveTeams} className="gap-2 bg-emerald-600 hover:bg-emerald-700">
-              <Save className="w-4 h-4" /> Save Changes
-            </Button>
-          </div>
+          <Button onClick={saveTeams} className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-lg">
+            <Save className="w-4 h-4" /> Save Changes
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-          <Card className="p-6 space-y-6 border-none shadow-lg bg-white">
+          <Card className="p-6 space-y-6 border-none shadow-lg bg-white relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-blue-600" />
             <div className="flex items-center gap-3 pb-4 border-b">
               <div className="w-12 h-12 rounded-xl bg-blue-600 flex items-center justify-center text-white shadow-inner">
                 <Shield className="w-7 h-7" />
@@ -192,7 +159,8 @@ const Teams = () => {
             <RosterEditor team="home" roster={homeRoster} />
           </Card>
 
-          <Card className="p-6 space-y-6 border-none shadow-lg bg-white">
+          <Card className="p-6 space-y-6 border-none shadow-lg bg-white relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-1 bg-red-600" />
             <div className="flex items-center gap-3 pb-4 border-b">
               <div className="w-12 h-12 rounded-xl bg-red-600 flex items-center justify-center text-white shadow-inner">
                 <Shield className="w-7 h-7" />
@@ -209,28 +177,7 @@ const Teams = () => {
             <RosterEditor team="away" roster={awayRoster} />
           </Card>
         </div>
-
-        <Card className="p-6 border-none shadow-lg bg-slate-900 text-white">
-          <div className="flex items-center gap-3 mb-6">
-            <Trophy className="w-6 h-6 text-amber-400" />
-            <h2 className="text-xl font-bold">Game Configuration</h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-2">
-              <Label className="text-slate-400">Quarter Length (Minutes)</Label>
-              <Input type="number" defaultValue={15} className="bg-slate-800 border-slate-700 text-white" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-slate-400">Timeouts per Half</Label>
-              <Input type="number" defaultValue={3} className="bg-slate-800 border-slate-700 text-white" />
-            </div>
-            <div className="space-y-2">
-              <Label className="text-slate-400">Game Location</Label>
-              <Input placeholder="Stadium Name" className="bg-slate-800 border-slate-700 text-white" />
-            </div>
-          </div>
-        </Card>
-      </div>
+      </main>
     </div>
   );
 };

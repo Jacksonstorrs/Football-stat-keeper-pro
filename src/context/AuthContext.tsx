@@ -1,16 +1,12 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
-import { supabase } from "@/lib/supabase";
 
 interface AuthContextProps {
-  user: any | null;
-  loading: boolean;
   teamCode: string | null;
-  // teamCode is now optional
-  signIn: (email: string, password: string, code?: string) => Promise<void>;
-  signUp: (email: string, password: string, code: string, teamName: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  login: (code: string) => void;
+  logout: () => void;
+  loading: boolean;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -22,123 +18,32 @@ export const useAuth = () => {
 };
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
-  const [user, setUser] = useState<any | null>(null);
-  const [loading, setLoading] = useState(true);
   const [teamCode, setTeamCode] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Listen to auth changes
   useEffect(() => {
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        setUser(session?.user ?? null);
-        setLoading(false);
-        if (session?.user) {
-          const storedCode = localStorage.getItem("teamCode");
-          if (storedCode) setTeamCode(storedCode);
-        } else {
-          setTeamCode(null);
-          localStorage.removeItem("teamCode");
-        }
-      }
-    );
-    // Initial check
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      setUser(session?.user ?? null);
-      setLoading(false);
-      if (session?.user) {
-        const storedCode = localStorage.getItem("teamCode");
-        if (storedCode) setTeamCode(storedCode);
-      }
-    })();
-
-    return () => {
-      authListener?.subscription.unsubscribe();
-    };
+    const storedCode = localStorage.getItem("teamCode");
+    if (storedCode) {
+      setTeamCode(storedCode);
+    }
+    setLoading(false);
   }, []);
 
-  // Sign‑in: team code is optional; if provided, verify it exists
-  const signIn = async (email: string, password: string, code?: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-
-    if (code) {
-      // Verify team code exists (but do not enforce uniqueness)
-      const { data, error: teamErr } = await supabase
-        .from("teams")
-        .select("code")
-        .eq("code", code)
-        .single();
-
-      if (teamErr || !data) {
-        await supabase.auth.signOut();
-        throw new Error("Invalid team code");
-      }
-
-      localStorage.setItem("teamCode", code);
-      setTeamCode(code);
-    } else {
-      // No code supplied – just clear any previous code
-      localStorage.removeItem("teamCode");
-      setTeamCode(null);
+  const login = (code: string) => {
+    const trimmedCode = code.trim().toUpperCase();
+    if (trimmedCode) {
+      localStorage.setItem("teamCode", trimmedCode);
+      setTeamCode(trimmedCode);
     }
   };
 
-  const signUp = async (
-    email: string,
-    password: string,
-    code: string,
-    teamName: string
-  ) => {
-    // Create team if it doesn't exist; otherwise reject duplicate code
-    const { data: existing, error: existingErr } = await supabase
-      .from("teams")
-      .select("code")
-      .eq("code", code)
-      .single();
-
-    if (existing && !existingErr) {
-      // Team already exists – reject duplicate code
-      throw new Error("Team code already taken");
-    }
-
-    // Insert new team
-    const { error: insertErr } = await supabase
-      .from("teams")
-      .insert([{ code, name: teamName }]);
-
-    if (insertErr) throw insertErr;
-
-    // Register user
-    const { error: signUpErr } = await supabase.auth.signUp({
-      email,
-      password,
-    });
-
-    if (signUpErr) throw signUpErr;
-
-    // Auto‑login after sign‑up
-    const { error: signInErr } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (signInErr) throw signInErr;
-
-    localStorage.setItem("teamCode", code);
-    setTeamCode(code);
-  };
-
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const logout = () => {
     localStorage.removeItem("teamCode");
     setTeamCode(null);
-    setUser(null);
   };
 
   return (
-    <AuthContext.Provider
-      value={{ user, loading, teamCode, signIn, signUp, signOut }}
-    >
+    <AuthContext.Provider value={{ teamCode, login, logout, loading }}>
       {children}
     </AuthContext.Provider>
   );

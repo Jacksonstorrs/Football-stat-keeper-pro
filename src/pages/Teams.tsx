@@ -9,29 +9,65 @@ import { Player } from "@/types/football";
 import { UserPlus, Trash2, Save, ArrowLeft, Shield, Users, Trophy } from "lucide-react";
 import { Link } from "react-router-dom";
 import { showSuccess } from "@/utils/toast";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const STORAGE_KEY = 'football_stat_keeper_teams_v1';
 
 const Teams = () => {
+  const { teamCode } = useAuth();
   const [homeTeamName, setHomeTeamName] = useState("Wildcats");
   const [awayTeamName, setAwayTeamName] = useState("Eagles");
   const [homeRoster, setHomeRoster] = useState<Player[]>([]);
   const [awayRoster, setAwayRoster] = useState<Player[]>([]);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const data = JSON.parse(saved);
-      setHomeTeamName(data.homeTeamName || "Wildcats");
-      setAwayTeamName(data.awayTeamName || "Eagles");
-      setHomeRoster(data.homeRoster || []);
-      setAwayRoster(data.awayRoster || []);
-    }
-  }, []);
+    if (!teamCode) return;
+    // Load from Supabase
+    const loadTeams = async () => {
+      const { data, error } = await supabase
+        .from('teams')
+        .select('*')
+        .eq('code', teamCode)
+        .single();
+      if (data) {
+        setHomeTeamName(data.home_team_name || "Wildcats");
+        setAwayTeamName(data.away_team_name || "Eagles");
+        setHomeRoster(data.home_roster || []);
+        setAwayRoster(data.away_roster || []);
+      } else {
+        // Fallback to localStorage
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const d = JSON.parse(saved);
+          setHomeTeamName(d.homeTeamName || "Wildcats");
+          setAwayTeamName(d.awayTeamName || "Eagles");
+          setHomeRoster(d.homeRoster || []);
+          setAwayRoster(d.awayRoster || []);
+        }
+      }
+    };
+    loadTeams();
+  }, [teamCode]);
 
-  const saveTeams = () => {
+  const saveTeams = async () => {
+    if (!teamCode) return;
     const data = { homeTeamName, awayTeamName, homeRoster, awayRoster };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    // Save to Supabase
+    const { error } = await supabase
+      .from('teams')
+      .update({
+        home_team_name: homeTeamName,
+        away_team_name: awayTeamName,
+        home_roster: homeRoster,
+        away_roster: awayRoster,
+      })
+      .eq('code', teamCode);
+    if (error) {
+      console.error(error);
+      // Fallback to localStorage
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
     showSuccess("Team data saved successfully");
   };
 

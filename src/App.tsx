@@ -1,16 +1,24 @@
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { QueryClient, QueryClientProvider } from "@tanstack/react```tsx
+import { Toaster } from "@/components/ui/toaster";
+import { Toaster as Sonner } from "@/components/ui/sonner";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
-import Teams from "./pages/Teams";
-import GameReport from "./pages/GameReport";
-import LiveGame from "./pages/LiveGame";
-import GamesList from "./pages/GamesList";
-import SeasonStats from "./pages/SeasonStats";
-import CoachAnalytics from "./pages/CoachAnalytics";
-import NotFound from "./pages/NotFound";
+import { AuthProvider } from "@/context/AuthContext";
+import ProtectedRoute from "@/components/ProtectedRoute";
+import Login from "@/components/Login";
+import Register from "@/components/Register";
+import Dashboard from "@/pages/Dashboard";
+import Teams from "@/pages/Teams";
+import GameReport from "@/pages/GameReport";
+import LiveGame from "@/pages/LiveGame";
+import GamesList from "@/pages/GamesList";
+import SeasonStats from "@/pages/SeasonStats";
+import CoachAnalytics from "@/pages/CoachAnalytics";
+import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -20,20 +28,35 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          <Route path="/teams" element={<Teams />} />
-          <Route path="/report" element={<GameReport />} />
-          <Route path="/live/:gameId" element={<LiveGame />} />
-          <Route path="/games" element={<GamesList />} />
-          <Route path="/season-stats" element={<SeasonStats />} />
-          <Route path="/coach-analytics" element={<CoachAnalytics />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route path="/register" element={<Register />} />
+            <Route element={<ProtectedRoute />}>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/teams" element={<Teams />} />
+              <Route path="/report" element={<GameReport />} />
+              <Route path="/live/:gameId" element={<LiveGame />} />
+              <Route path="/games" element={<GamesList />} />
+              <Route path="/season-stats" element={<SeasonStats />} />
+              <Route path="/coach-analytics" element={<CoachAnalytics />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
 );
 
 export default App;
+```
+
+---
+
+<dyad-write path="src/main.tsx" description="Update main.tsx to remove duplicate providers (already in App.tsx)">
+import { createRoot } from "react-dom/client";
+import App from "./App.tsx";
+import "./globals.css";
+
+createRoot(document.getElementById("root")!).render(<App />);

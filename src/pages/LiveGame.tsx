@@ -12,22 +12,42 @@ import TopPerformers from "@/components/TopPerformers";
 import { GameState } from "@/types/football";
 import { Badge } from "@/components/ui/badge";
 import { Radio, MapPin, Cloud } from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const LiveGame = () => {
   const { gameId } = useParams();
+  const { teamCode } = useAuth();
   const [game, setGame] = useState<GameState | null>(null);
 
   useEffect(() => {
-    const saved = localStorage.getItem('football_stat_keeper_pro_v2');
-    if (saved) setGame(JSON.parse(saved));
-    
-    const interval = setInterval(() => {
-      const updated = localStorage.getItem('football_stat_keeper_pro_v2');
-      if (updated) setGame(JSON.parse(updated));
-    }, 3000);
+    if (!teamCode) return;
+    // Load game data for this team from Supabase
+    const loadGame = async () => {
+      const { data, error } = await supabase
+        .from('game_data')
+        .select('data')
+        .eq('team_code', teamCode)
+        .single();
+      if (data) setGame(data.data);
+    };
+    loadGame();
 
-    return () => clearInterval(interval);
-  }, [gameId]);
+    // Real-time subscription for this team's game
+    const channel = supabase
+      .channel(`team:${teamCode}:game`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        callback: (payload) => {
+          if (payload.new?.data) setGame(payload.new.data);
+        },
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [teamCode]);
 
   if (!game) return <div className="p-10 text-center text-white">Waiting for game data...</div>;
 

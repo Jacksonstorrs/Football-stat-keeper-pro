@@ -2,11 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { GameState } from "@/types/football";
-import { Card } from "@/components<dyad-write path="src/pages/GamesList.tsx" description="Fix invalid icon import by replacing CloudSync with RefreshCw">
-"use client";
-
-import React, { useEffect, useState } from 'react';
-import { GameState } from "@/types/football";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,18 +50,15 @@ const GamesList = () => {
     awayScore: 0
   });
 
-  // Load and Sync
   useEffect(() => {
     if (!teamCode) return;
 
     const loadGames = async () => {
-      // 1. Load from Local Storage first for speed
       const saved = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
       if (saved) setGames(JSON.parse(saved));
 
-      // 2. Fetch from Supabase
       if (supabase) {
-        const { data, error } = await supabase
+        const { data } = await supabase
           .from('seasons')
           .select('data')
           .eq('id', teamCode)
@@ -81,7 +73,6 @@ const GamesList = () => {
 
     loadGames();
 
-    // 3. Subscribe to real-time updates
     if (supabase) {
       const channel = supabase
         .channel(`season_${teamCode}`)
@@ -105,11 +96,9 @@ const GamesList = () => {
 
     if (supabase && isAdmin) {
       setIsSyncing(true);
-      const { error } = await supabase
+      await supabase
         .from('seasons')
         .upsert({ id: teamCode, data: updated, updated_at: new Date().toISOString() });
-      
-      if (error) showError("Cloud sync failed");
       setIsSyncing(false);
     }
   };

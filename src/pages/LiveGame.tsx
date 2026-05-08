@@ -13,7 +13,8 @@ import { GameState } from "@/types/football";
 import { Badge } from "@/components/ui/badge";
 import { Radio, MapPin, Cloud } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+
+const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 
 const LiveGame = () => {
   const { gameId } = useParams();
@@ -21,35 +22,29 @@ const LiveGame = () => {
   const [game, setGame] = useState<GameState | null>(null);
 
   useEffect(() => {
-    if (!teamCode) return;
-    // Load game data for this team from Supabase
-    const loadGame = async () => {
-      const { data, error } = await supabase
-        .from('game_data')
-        .select('data')
-        .eq('team_code', teamCode)
-        .single();
-      if (data) setGame(data.data);
+    // In a local-only setup, we just read from the local storage
+    const loadLocalGame = () => {
+      const savedGame = localStorage.getItem(GAME_STORAGE_KEY);
+      if (savedGame) {
+        setGame(JSON.parse(savedGame));
+      }
     };
-    loadGame();
 
-    // Real-time subscription for this team's game
-    const channel = supabase
-      .channel(`team:${teamCode}:game`)
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        callback: (payload) => {
-          if (payload.new?.data) setGame(payload.new.data);
-        },
-      })
-      .subscribe();
+    loadLocalGame();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [teamCode]);
+    // Listen for storage changes in case the tracker is open in another tab
+    window.addEventListener('storage', loadLocalGame);
+    return () => window.removeEventListener('storage', loadLocalGame);
+  }, []);
 
-  if (!game) return <div className="p-10 text-center text-white">Waiting for game data...</div>;
+  if (!game) return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">
+      <div className="text-center space-y-4">
+        <div className="animate-pulse text-slate-500 font-black uppercase tracking-widest">Waiting for game data...</div>
+        <p className="text-xs text-slate-600">Start a game in the tracker to see live updates here.</p>
+      </div>
+    </div>
+  );
 
   const currentDrive = game.drives.find(d => d.id === game.currentDriveId);
 
@@ -61,11 +56,11 @@ const LiveGame = () => {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse" />
-              <h1 className="text-xl font-black tracking-tighter">LIVE BROADCAST</h1>
+              <h1 className="text-xl font-black tracking-tighter">LIVE VIEW</h1>
             </div>
             <div className="h-4 w-[1px] bg-white/20 hidden md:block" />
             <div className="flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> Memorial Stadium</span>
+              <span className="flex items-center gap-1.5"><MapPin className="w-3 h-3" /> Local Session</span>
               <span className="flex items-center gap-1.5"><Cloud className="w-3 h-3" /> 72° Clear</span>
             </div>
           </div>

@@ -11,7 +11,7 @@ import TeamStats from "@/components/TeamStats";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText } from "lucide-react";
+import { Settings, Users, FileText, Share2, Radio } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const INITIAL_ROSTER_HOME: Player[] = [
@@ -170,6 +170,18 @@ const Index = () => {
         newState.distance = 10;
         result = type;
         possessionChanged = true;
+        // Reset yard line for punt/turnover (simplified)
+        newYardLine = newState.possession === "Home" ? 25 : 75;
+      } else if (type === "Field Goal") {
+        isScoringPlay = true;
+        if (prev.possession === "Home") newState.homeScore += 3;
+        else newState.awayScore += 3;
+        newState.possession = prev.possession === "Home" ? "Away" : "Home";
+        newState.down = 1;
+        newState.distance = 10;
+        result = "FIELD GOAL GOOD!";
+        possessionChanged = true;
+        newYardLine = newState.possession === "Home" ? 25 : 75;
       } else {
         const direction = prev.possession === "Home" ? 1 : -1;
         newYardLine = Math.max(0, Math.min(100, currentYardLine + (yards * direction)));
@@ -230,12 +242,27 @@ const Index = () => {
     });
   };
 
+  const handleShare = () => {
+    const url = `${window.location.origin}/live/game-123`;
+    navigator.clipboard.writeText(url);
+    showSuccess("Live link copied to clipboard!");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       <div className="max-w-[1400px] mx-auto space-y-6">
         <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-black tracking-tighter text-slate-900">STAT KEEPER PRO</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-black tracking-tighter text-slate-900">STAT KEEPER PRO</h1>
+            <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
+              <Radio className="w-3 h-3 animate-pulse" />
+              <span className="text-[10px] font-black uppercase tracking-widest">Live Sync Active</span>
+            </div>
+          </div>
           <div className="flex gap-2">
+            <Button variant="outline" className="gap-2 bg-white" onClick={handleShare}>
+              <Share2 className="w-4 h-4" /> Share Live
+            </Button>
             <Link to="/report">
               <Button variant="outline" className="gap-2 bg-white">
                 <FileText className="w-4 h-4" /> Game Report

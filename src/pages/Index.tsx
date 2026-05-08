@@ -12,8 +12,8 @@ import WinProbability from "@/components/WinProbability";
 import { GameState, Player, Play, Team, PlayerStats, PlayType, Drive } from "@/types/football";
 import { showSuccess, showError } from "@/utils/toast";
 import { Button } from "@/components/ui/button";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useAuth } from "@/context/AuthContext";
@@ -38,9 +38,9 @@ const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 
 const Index = () => {
   const { teamCode, isAdmin } = useAuth();
+  const navigate = useNavigate();
   const [gameState, setGameState] = useState<GameState>(() => {
-    const savedGame = localStorage.getItem(GAME_STORAGE_KEY);
-    
+    const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
     if (savedGame) return JSON.parse(savedGame);
     
     const initialDriveId = Math.random().toString(36).substr(2, 9);
@@ -76,7 +76,7 @@ const Index = () => {
   const [history, setHistory] = useState<GameState[]>([]);
   const clockInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Sync with Supabase
+  // Sync Live Game to Supabase
   useEffect(() => {
     if (!supabase || !teamCode) return;
 
@@ -92,7 +92,7 @@ const Index = () => {
     };
 
     const timeout = setTimeout(syncToCloud, 1000);
-    localStorage.setItem(GAME_STORAGE_KEY, JSON.stringify(gameState));
+    localStorage.setItem(`${GAME_STORAGE_KEY}_${teamCode}`, JSON.stringify(gameState));
     return () => clearTimeout(timeout);
   }, [gameState, teamCode, isAdmin]);
 
@@ -104,7 +104,9 @@ const Index = () => {
       .channel(`game_${teamCode}`)
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'games', filter: `id=eq.${teamCode}` }, 
         payload => {
-          setGameState(payload.new.state);
+          if (payload.new && payload.new.state) {
+            setGameState(payload.new.state);
+          }
         }
       )
       .subscribe();
@@ -127,16 +129,8 @@ const Index = () => {
     return () => { if (clockInterval.current) clearInterval(clockInterval.current); };
   }, [gameState.isClockRunning, gameState.gameClock]);
 
-  const saveToHistory = useCallback(() => {
-    setHistory(prev => [...prev, { ...gameState }]);
-  }, [gameState]);
-
   const handleAction = (type: PlayType, yards: number, player?: Player, receiver?: Player) => {
-    if (!isAdmin) {
-      showError("Admin access required to track plays");
-      return;
-    }
-    saveToHistory();
+    if (!isAdmin) return showError("Admin access required");
     
     setGameState(prev => {
       const newState = { ...prev };
@@ -145,28 +139,34 @@ const Index = () => {
       let newYardLine = currentYardLine;
       let isFirstDown = false;
       let isScoringPlay = false;
-      let possessionChanged = false;
+
+      // Update Stats
+      if (player) {
+        if (!newState.stats[player.id]) {
+          newState.stats[player.id] = {
+            passAtt: 0, passComp: 0, passYds: 0, passTDs: 0, ints: 0,
+            rushAtt: 0, rushYds: 0, rushTDs: 0, receptions: 0, recYds: 0,
+            recTDs: 0, fumbles: 0, tackles: 0, sacks: 0
+          };
+        }
+        const s = newState.stats[player.id];
+        if (type === "Pass") { s.passAtt += 1; s.passComp += 1; s.passYds += yards; }
+        if (type === "Run") { s.rushAtt += 1; s.rushYds += yards; }
+        if (type === "Incomplete") { s.passAtt += 1; }
+        if (type === "Touchdown") { s.rushTDs += 1; }
+      }
 
       if (type === "Touchdown") {
         isScoringPlay = true;
-        if (prev.possession === "Home") {
-          newState.homeScore += 7;
-          newYardLine = 65;
-        } else {
-          newState.awayScore += 7;
-          newYardLine = 35;
-        }
+        if (prev.possession === "Home") { newState.homeScore += 7; newYardLine = 65; }
+        else { newState.awayScore += 7; newYardLine = 35; }
         newState.possession = prev.possession === "Home" ? "Away" : "Home";
-        newState.down = 1;
-        newState.distance = 10;
+        newState.down = 1; newState.distance = 10;
         result = "TOUCHDOWN!";
-        possessionChanged = true;
       } else if (type === "Turnover" || type === "Punt") {
         newState.possession = prev.possession === "Home" ? "Away" : "Home";
-        newState.down = 1;
-        newState.distance = 10;
+        newState.down = 1; newState.distance = 10;
         result = type;
-        possessionChanged = true;
         newYardLine = newState.possession === "Home" ? 25 : 75;
       } else {
         const direction = prev.possession === "Home" ? 1 : -1;
@@ -174,15 +174,12 @@ const Index = () => {
         result = `${type} for ${yards} yards`;
         
         if (yards >= prev.distance && type !== "Incomplete" && type !== "Penalty") {
-          newState.down = 1;
-          newState.distance = 10;
-          isFirstDown = true;
+          newState.down = 1; newState.distance = 10; isFirstDown = true;
         } else if (type !== "Penalty") {
           if (prev.down === 4) {
             newState.possession = prev.possession === "Home" ? "Away" : "Home";
-            newState.down = 1;
-            newState.distance = 10;
-            possessionChanged = true;
+            newState.down = 1; newState.distance = 10;
+            newYardLine = newState.possession === "Home" ? 25 : 75;
           } else {
             newState.down = prev.down + 1;
             newState.distance = Math.max(0, prev.distance - yards);
@@ -204,13 +201,42 @@ const Index = () => {
     });
   };
 
+  const finalizeGame = async () => {
+    if (!isAdmin) return;
+    
+    // 1. Fetch current season
+    let seasonData = [];
+    if (supabase) {
+      const { data } = await supabase.from('seasons').select('data').eq('id', teamCode).single();
+      if (data?.data) seasonData = data.data;
+    } else {
+      const saved = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
+      if (saved) seasonData = JSON.parse(saved);
+    }
+
+    // 2. Add current game to season
+    const finalizedGame = { ...gameState, status: 'completed' };
+    const updatedSeason = [finalizedGame, ...seasonData];
+
+    // 3. Save Season
+    if (supabase) {
+      await supabase.from('seasons').upsert({ id: teamCode, data: updatedSeason, updated_at: new Date().toISOString() });
+    }
+    localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(updatedSeason));
+
+    // 4. Clear Live Game
+    localStorage.removeItem(`${GAME_STORAGE_KEY}_${teamCode}`);
+    showSuccess("Game finalized and saved to season!");
+    navigate("/games");
+  };
+
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-6">
       {!isAdmin && (
         <div className="max-w-[1400px] mx-auto mb-4">
           <div className="bg-amber-50 border border-amber-200 p-3 rounded-xl flex items-center gap-3 text-amber-800 text-xs font-bold">
             <Lock className="w-4 h-4" />
-            VIEWER MODE: You are watching a live sync. Only admins can record plays.
+            VIEWER MODE: Syncing live with Team {teamCode}.
           </div>
         </div>
       )}
@@ -221,61 +247,45 @@ const Index = () => {
             <h1 className="text-2xl font-black tracking-tighter text-slate-900">STAT KEEPER PRO</h1>
             <div className="flex items-center gap-2 px-3 py-1 bg-red-50 text-red-600 rounded-full border border-red-100">
               <Radio className="w-3 h-3 animate-pulse" />
-              <span className="text-[10px] font-black uppercase tracking-widest">Live Sync Active</span>
+              <span className="text-[10px] font-black uppercase tracking-widest">Live Sync</span>
             </div>
           </div>
           <div className="flex flex-wrap gap-2 justify-center">
-            <Link to="/live/current" target="_blank">
-              <Button variant="default" className="gap-2 bg-red-600 hover:bg-red-700">
-                <Share2 className="w-4 h-4" /> Go Live
-              </Button>
-            </Link>
-            <Link to="/coach-analytics">
-              <Button variant="outline" className="gap-2 bg-slate-900 text-white hover:bg-slate-800">
-                <BarChart3 className="w-4 h-4" /> Coach Analytics
-              </Button>
-            </Link>
-            <Link to="/games">
-              <Button variant="outline" className="gap-2 bg-white">
-                <Calendar className="w-4 h-4" /> Season
-              </Button>
-            </Link>
-            <Link to="/report">
-              <Button variant="outline" className="gap-2 bg-white">
-                <FileText className="w-4 h-4" /> Game Report
-              </Button>
-            </Link>
+            {isAdmin && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="default" className="gap-2 bg-emerald-600 hover:bg-emerald-700">
+                    <CheckCircle2 className="w-4 h-4" /> Finalize Game
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Finalize this game?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will end the live session and save all stats to the season dashboard.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={finalizeGame} className="bg-emerald-600">Finalize & Save</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+            <Link to="/games"><Button variant="outline" className="bg-white">Season</Button></Link>
+            <Link to="/report"><Button variant="outline" className="bg-white">Report</Button></Link>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
           <div className="lg:col-span-8 space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="md:col-span-2">
-                <Scoreboard 
-                  homeTeam={gameState.homeTeam} awayTeam={gameState.awayTeam}
-                  homeScore={gameState.homeScore} awayScore={gameState.awayScore}
-                  homeTimeouts={gameState.homeTimeouts} awayTimeouts={gameState.awayTimeouts}
-                  possession={gameState.possession} down={gameState.down}
-                  distance={gameState.distance} quarter={gameState.quarter}
-                />
-              </div>
-              <div className="space-y-4">
-                <GameClock 
-                  seconds={gameState.gameClock}
-                  isRunning={gameState.isClockRunning}
-                  onToggle={() => isAdmin && setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))}
-                  onReset={() => isAdmin && setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))}
-                  onNextQuarter={() => isAdmin && setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1), gameClock: 900 }))}
-                  quarter={gameState.quarter}
-                />
-                <WinProbability 
-                  homeProb={50} 
-                  homeTeam={gameState.homeTeam} 
-                  awayTeam={gameState.awayTeam} 
-                />
-              </div>
-            </div>
+            <Scoreboard 
+              homeTeam={gameState.homeTeam} awayTeam={gameState.awayTeam}
+              homeScore={gameState.homeScore} awayScore={gameState.awayScore}
+              homeTimeouts={gameState.homeTimeouts} awayTimeouts={gameState.awayTimeouts}
+              possession={gameState.possession} down={gameState.down}
+              distance={gameState.distance} quarter={gameState.quarter}
+            />
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
@@ -285,7 +295,6 @@ const Index = () => {
                   onSpotBall={(y) => isAdmin && setGameState(prev => ({ ...prev, yardLine: y }))}
                 />
               </div>
-
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
                 {isAdmin ? (
                   <ActionPanel 
@@ -299,10 +308,7 @@ const Index = () => {
                 ) : (
                   <div className="h-full flex flex-col items-center justify-center text-center p-8 space-y-4">
                     <Lock className="w-12 h-12 text-slate-200" />
-                    <div>
-                      <h3 className="font-black uppercase text-slate-900">Read Only</h3>
-                      <p className="text-xs text-slate-500">Login as Admin to record plays</p>
-                    </div>
+                    <p className="text-xs text-slate-500 font-bold uppercase">Read Only Mode</p>
                   </div>
                 )}
               </div>

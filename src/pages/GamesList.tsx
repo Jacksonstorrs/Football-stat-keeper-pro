@@ -9,8 +9,10 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
-import { Trophy, Calendar, ArrowLeft, Plus, Trash2, ChevronRight, MapPin, Clock, CheckCircle2 } from "lucide-react";
-import { showSuccess } from "@/utils/toast";
+import { Trophy, Calendar, ArrowLeft, Plus, Trash2, ChevronRight, MapPin, Clock, CheckCircle2, CloudSync } from "lucide-react";
+import { showSuccess, showError } from "@/utils/toast";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
 
 const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 
@@ -28,12 +30,13 @@ interface ScheduledGame {
 }
 
 const GamesList = () => {
+  const { teamCode, isAdmin } = useAuth();
   const [games, setGames] = useState<(GameState | ScheduledGame)[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
   const [selectedGame, setSelectedGame] = useState<ScheduledGame | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   
-  // Form states
   const [newGame, setNewGame] = useState({
     date: '',
     time: '',
@@ -47,17 +50,67 @@ const GamesList = () => {
     awayScore: 0
   });
 
+  // Load and Sync
   useEffect(() => {
-    const saved = localStorage.getItem(SEASON_STORAGE_KEY);
-    if (saved) setGames(JSON.parse(saved));
-  }, []);
+    if (!teamCode) return;
 
-  const saveGames = (updated: (GameState | ScheduledGame)[]) => {
+    const loadGames = async () => {
+      // 1. Load from Local Storage first for speed
+      const saved = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
+      if (saved) setGames(JSON.parse(saved));
+
+      // 2. Fetch from Supabase
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('seasons')
+          .select('data')
+          .eq('id', teamCode)
+          .single();
+        
+        if (data?.data) {
+          setGames(data.data);
+          localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(data.data));
+        }
+      }
+    };
+
+    loadGames();
+
+    // 3. Subscribe to real-time updates
+    if (supabase) {
+      const channel = supabase
+        .channel(`season_${teamCode}`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'seasons', filter: `id=eq.${teamCode}` }, 
+          payload => {
+            if (payload.new && payload.new.data) {
+              setGames(payload.new.data);
+              localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(payload.new.data));
+            }
+          }
+        )
+        .subscribe();
+
+      return () => { supabase.removeChannel(channel); };
+    }
+  }, [teamCode]);
+
+  const saveGames = async (updated: (GameState | ScheduledGame)[]) => {
     setGames(updated);
-    localStorage.setItem(SEASON_STORAGE_KEY, JSON.stringify(updated));
+    localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(updated));
+
+    if (supabase && isAdmin) {
+      setIsSyncing(true);
+      const { error } = await supabase
+        .from('seasons')
+        .upsert({ id: teamCode, data: updated, updated_at: new Date().toISOString() });
+      
+      if (error) showError("Cloud sync failed");
+      setIsSyncing(false);
+    }
   };
 
   const handleAddGame = () => {
+    if (!isAdmin) return showError("Admin access required");
     const game: ScheduledGame = {
       id: Math.random().toString(36).substr(2, 9),
       ...newGame,
@@ -65,15 +118,16 @@ const GamesList = () => {
     };
     saveGames([game, ...games]);
     setIsAddDialogOpen(false);
-    showSuccess("Game scheduled successfully");
+    showSuccess("Game scheduled");
     setNewGame({ date: '', time: '', homeTeam: '', awayTeam: '', location: '' });
   };
 
   const handleEnterResult = () => {
-    if (!selectedGame) return;
+    if (!selectedGame || !isAdmin) return;
     
     const updated = games.map(g => {
-      if ('id' in g && g.id === selectedGame.id) {
+      const gId = 'id' in g ? g.id : (g as any).currentDriveId;
+      if (gId === selectedGame.id) {
         const winner = manualResult.homeScore > manualResult.awayScore 
           ? selectedGame.homeTeam 
           : manualResult.awayScore > manualResult.homeScore 
@@ -97,15 +151,16 @@ const GamesList = () => {
   };
 
   const deleteGame = (id: string) => {
+    if (!isAdmin) return showError("Admin access required");
     const updated = games.filter(g => {
-      if ('currentDriveId' in g) return g.currentDriveId !== id;
-      return g.id !== id;
+      const gId = 'id' in g ? g.id : (g as any).currentDriveId;
+      return gId !== id;
     });
     saveGames(updated);
     showSuccess("Game removed");
   };
 
-  const isLiveGame = (game: any): game is GameState => 'currentDriveId' in game;
+  const isLiveGame = (game: any): game is GameState => 'playLog' in game;
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -118,55 +173,60 @@ const GamesList = () => {
               </Button>
             </Link>
             <div>
-              <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">Season Schedule</h1>
-              <p className="text-slate-500 text-sm">Schedule upcoming matches and record results</p>
+              <div className="flex items-center gap-2">
+                <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">Season Schedule</h1>
+                {isSyncing && <CloudSync className="w-4 h-4 text-blue-500 animate-spin" />}
+              </div>
+              <p className="text-slate-500 text-sm">Syncing for Team: <span className="font-bold text-blue-600">{teamCode}</span></p>
             </div>
           </div>
           
           <div className="flex gap-2">
-            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="gap-2 bg-slate-900">
-                  <Plus className="w-4 h-4" /> Schedule Game
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                  <DialogTitle>Schedule New Game</DialogTitle>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label>Date</Label>
-                      <Input type="date" value={newGame.date} onChange={e => setNewGame({...newGame, date: e.target.value})} />
+            {isAdmin && (
+              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="gap-2 bg-slate-900">
+                    <Plus className="w-4 h-4" /> Schedule Game
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[425px]">
+                  <DialogHeader>
+                    <DialogTitle>Schedule New Game</DialogTitle>
+                  </DialogHeader>
+                  <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label>Date</Label>
+                        <Input type="date" value={newGame.date} onChange={e => setNewGame({...newGame, date: e.target.value})} />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Time</Label>
+                        <Input type="time" value={newGame.time} onChange={e => setNewGame({...newGame, time: e.target.value})} />
+                      </div>
                     </div>
                     <div className="space-y-2">
-                      <Label>Time</Label>
-                      <Input type="time" value={newGame.time} onChange={e => setNewGame({...newGame, time: e.target.value})} />
+                      <Label>Home Team</Label>
+                      <Input placeholder="Wildcats" value={newGame.homeTeam} onChange={e => setNewGame({...newGame, homeTeam: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Away Team</Label>
+                      <Input placeholder="Eagles" value={newGame.awayTeam} onChange={e => setNewGame({...newGame, awayTeam: e.target.value})} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Location</Label>
+                      <Input placeholder="Memorial Stadium" value={newGame.location} onChange={e => setNewGame({...newGame, location: e.target.value})} />
                     </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Home Team</Label>
-                    <Input placeholder="Wildcats" value={newGame.homeTeam} onChange={e => setNewGame({...newGame, homeTeam: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Away Team</Label>
-                    <Input placeholder="Eagles" value={newGame.awayTeam} onChange={e => setNewGame({...newGame, awayTeam: e.target.value})} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Location</Label>
-                    <Input placeholder="Memorial Stadium" value={newGame.location} onChange={e => setNewGame({...newGame, location: e.target.value})} />
-                  </div>
-                </div>
-                <DialogFooter>
-                  <Button onClick={handleAddGame} className="w-full bg-emerald-600 hover:bg-emerald-700">Save Schedule</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+                  <DialogFooter>
+                    <Button onClick={handleAddGame} className="w-full bg-emerald-600 hover:bg-emerald-700">Save Schedule</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            )}
 
             <Link to="/season-stats">
               <Button variant="outline" className="gap-2 font-bold">
-                <Trophy className="w-4 h-4" /> Stats
+                <Trophy className="w-4 h-4" /> Season Stats
               </Button>
             </Link>
           </div>
@@ -180,7 +240,7 @@ const GamesList = () => {
               </div>
               <div>
                 <h3 className="font-bold text-lg">No games scheduled</h3>
-                <p className="text-slate-500 text-sm">Start by scheduling your first match of the season.</p>
+                <p className="text-slate-500 text-sm">Start by scheduling your first match or tracking a live game.</p>
               </div>
             </Card>
           ) : (
@@ -197,14 +257,11 @@ const GamesList = () => {
                     <div className="flex items-center gap-8 flex-1">
                       <div className="text-center min-w-[100px]">
                         <div className="text-[10px] font-black text-slate-400 uppercase mb-1">
-                          {live ? 'Live Tracked' : 'Scheduled'}
+                          {live ? 'Tracked Game' : 'Scheduled'}
                         </div>
                         <div className="text-xs font-bold text-slate-900">
                           {live ? 'FINAL' : (game as ScheduledGame).date || 'TBD'}
                         </div>
-                        {!live && (game as ScheduledGame).time && (
-                          <div className="text-[10px] text-slate-500">{(game as ScheduledGame).time}</div>
-                        )}
                       </div>
                       
                       <div className="flex items-center gap-4 flex-1 justify-center md:justify-start">
@@ -221,7 +278,7 @@ const GamesList = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {!live && status === 'scheduled' && (
+                      {isAdmin && !live && status === 'scheduled' && (
                         <Button 
                           variant="secondary" 
                           size="sm"
@@ -235,35 +292,25 @@ const GamesList = () => {
                         </Button>
                       )}
                       
-                      <Button variant="ghost" size="icon" onClick={() => deleteGame(id)} className="text-slate-300 hover:text-red-500">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      {isAdmin && (
+                        <Button variant="ghost" size="icon" onClick={() => deleteGame(id)} className="text-slate-300 hover:text-red-500">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
                       
                       {live && (
                         <Link to="/report">
-                          <Button variant="outline" size="sm" className="font-bold">Report</Button>
+                          <Button variant="outline" size="sm" className="font-bold">View Report</Button>
                         </Link>
                       )}
                     </div>
                   </div>
-                  
-                  {!live && (game as ScheduledGame).location && (
-                    <div className="mt-4 pt-4 border-t flex items-center gap-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
-                      <span className="flex items-center gap-1"><MapPin className="w-3 h-3" /> {(game as ScheduledGame).location}</span>
-                      {status === 'completed' && (
-                        <span className="flex items-center gap-1 text-emerald-600">
-                          <Trophy className="w-3 h-3" /> Winner: {(game as ScheduledGame).winner}
-                        </span>
-                      )}
-                    </div>
-                  )}
                 </Card>
               );
             })
           )}
         </div>
 
-        {/* Manual Result Dialog */}
         <Dialog open={isResultDialogOpen} onOpenChange={setIsResultDialogOpen}>
           <DialogContent className="sm:max-w-[400px]">
             <DialogHeader>

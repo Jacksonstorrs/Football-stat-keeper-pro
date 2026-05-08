@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle } from "lucide-react";
+import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle, Flag } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
@@ -112,19 +112,28 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
     return (
       <div className="space-y-6 animate-in fade-in zoom-in duration-300">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-black uppercase tracking-widest text-red-500">Penalty Yardage</h3>
+          <div className="flex items-center gap-2">
+            <Flag className="w-5 h-5 text-amber-500 fill-amber-500" />
+            <h3 className="text-sm font-black uppercase tracking-widest text-amber-600">Penalty Flag</h3>
+          </div>
           <Button variant="ghost" size="sm" onClick={() => setStep("player")} className="text-[10px] font-black uppercase tracking-widest">
             <ArrowLeft className="w-3 h-3 mr-1" /> Back
           </Button>
         </div>
+        
+        <div className="bg-amber-50 border border-amber-100 p-4 rounded-xl text-center">
+          <p className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-1">Select Yardage</p>
+          <p className="text-xs text-amber-600 font-medium">Penalty will adjust ball position without advancing down.</p>
+        </div>
+
         <div className="grid grid-cols-3 gap-2">
           {[5, 10, 15].map(y => (
-            <Button key={y} variant="outline" className="h-16 font-black text-lg" onClick={() => { setYardage(y.toString()); setStep("yards"); }}>
+            <Button key={y} variant="outline" className="h-16 font-black text-lg border-amber-200 hover:bg-amber-50 text-amber-700" onClick={() => { setYardage(y.toString()); setStep("yards"); }}>
               {y} YDS
             </Button>
           ))}
         </div>
-        <Button variant="secondary" className="w-full h-12 font-black uppercase text-[10px]" onClick={() => setStep("yards")}>Custom Yardage</Button>
+        <Button variant="secondary" className="w-full h-12 font-black uppercase text-[10px] bg-slate-100" onClick={() => setStep("yards")}>Custom Yardage</Button>
       </div>
     );
   }
@@ -142,10 +151,27 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
             {isHomeOffense ? "Offense Mode" : "Defense Mode"}
           </p>
         </div>
-        <Button variant="ghost" size="sm" onClick={onUndo} disabled={!canUndo} className="h-8 text-[10px] font-black uppercase tracking-widest gap-2">
-          <RotateCcw className="w-3 h-3" /> Undo
-        </Button>
+        <div className="flex gap-2">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={onUndo} 
+            disabled={!canUndo} 
+            className="h-8 text-[10px] font-black uppercase tracking-widest gap-2"
+          >
+            <RotateCcw className="w-3 h-3" /> Undo
+          </Button>
+        </div>
       </div>
+
+      {/* Prominent Penalty Flag Button */}
+      <Button 
+        onClick={() => handleActionClick("Penalty")}
+        className="w-full h-14 bg-amber-400 hover:bg-amber-500 text-amber-950 font-black uppercase tracking-widest gap-3 shadow-lg shadow-amber-100 border-b-4 border-amber-600 active:border-b-0 active:translate-y-1 transition-all"
+      >
+        <Flag className="w-6 h-6 fill-amber-950" />
+        Throw Penalty Flag
+      </Button>
 
       <div className="bg-slate-50 rounded-2xl p-2 border border-slate-100">
         <ScrollArea className="h-40 w-full">
@@ -183,26 +209,22 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ homeRoster, onAction, onUndo,
             <Button className="h-12 bg-amber-500 text-slate-900 font-black uppercase text-[10px]" onClick={() => handleActionClick("Touchdown")}>Touchdown</Button>
             <Button variant="destructive" className="h-12 font-black uppercase text-[10px]" onClick={() => handleActionClick("Turnover")}>Turnover</Button>
           </div>
-          <div className="grid grid-cols-3 gap-2 pt-2 border-t">
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t">
             <Button variant="outline" className="h-10 text-[9px] font-black uppercase" onClick={() => handleActionClick("Field Goal")}>FG</Button>
             <Button variant="outline" className="h-10 text-[9px] font-black uppercase" onClick={() => handleActionClick("Punt")}>Punt</Button>
-            <Button variant="outline" className="h-10 text-[9px] font-black uppercase" onClick={() => handleActionClick("Penalty")}>Penalty</Button>
           </div>
         </TabsContent>
 
         <TabsContent value="defense" className="space-y-4 animate-in fade-in">
-          <div className="grid grid-cols-2 gap-2">
-            <Button variant="secondary" className="h-14 font-black uppercase text-[10px] gap-2" onClick={() => handleActionClick("Tackle")}>
+          <div className="grid grid-cols-3 gap-2">
+            <Button variant="secondary" className="h-14 font-black uppercase text-[10px] flex flex-col gap-1" onClick={() => handleActionClick("Tackle")}>
               <Shield className="w-4 h-4" /> Tackle
             </Button>
-            <Button variant="secondary" className="h-14 font-black uppercase text-[10px] gap-2" onClick={() => handleActionClick("Sack")}>
+            <Button variant="secondary" className="h-14 font-black uppercase text-[10px] flex flex-col gap-1" onClick={() => handleActionClick("Sack")}>
               <Zap className="w-4 h-4" /> Sack
             </Button>
-            <Button variant="secondary" className="h-14 font-black uppercase text-[10px] gap-2" onClick={() => handleActionClick("Interception")}>
+            <Button variant="secondary" className="h-14 font-black uppercase text-[10px] flex flex-col gap-1" onClick={() => handleActionClick("Interception")}>
               <Target className="w-4 h-4" /> INT
-            </Button>
-            <Button variant="secondary" className="h-14 font-black uppercase text-[10px] gap-2" onClick={() => handleActionClick("Penalty")}>
-              <AlertCircle className="w-4 h-4" /> Penalty
             </Button>
           </div>
           <div className="pt-2 border-t">

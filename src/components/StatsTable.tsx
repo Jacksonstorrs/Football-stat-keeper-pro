@@ -31,19 +31,20 @@ const StatsTable: React.FC<StatsTableProps> = ({ players, stats, title }) => {
               <TableHead className="w-[120px] text-[10px] font-black uppercase">Player</TableHead>
               <TableHead className="text-right text-[10px] font-black uppercase">C/A</TableHead>
               <TableHead className="text-right text-[10px] font-black uppercase">P-Yds</TableHead>
-              <TableHead className="text-right text-[10px] font-black uppercase">R-Att</TableHead>
               <TableHead className="text-right text-[10px] font-black uppercase">R-Yds</TableHead>
-              <TableHead className="text-right text-[10px] font-black uppercase">TD</TableHead>
+              <TableHead className="text-right text-[10px] font-black uppercase">Rec</TableHead>
+              <TableHead className="text-right text-[10px] font-black uppercase">Rec-Yds</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {players.map((player) => {
               const s = stats[player.id] || { 
                 passAtt: 0, passComp: 0, passYds: 0, 
-                rushAtt: 0, rushYds: 0, passTDs: 0, rushTDs: 0 
+                rushAtt: 0, rushYds: 0, passTDs: 0, rushTDs: 0,
+                receptions: 0, recYds: 0
               };
               
-              const hasStats = s.passAtt > 0 || s.rushAtt > 0;
+              const hasStats = s.passAtt > 0 || s.rushAtt > 0 || s.receptions > 0;
               if (!hasStats) return null;
 
               return (
@@ -58,14 +59,14 @@ const StatsTable: React.FC<StatsTableProps> = ({ players, stats, title }) => {
                   <TableCell className="text-right tabular-nums text-xs font-bold text-blue-600">
                     {s.passYds}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-xs font-medium">
-                    {s.rushAtt}
-                  </TableCell>
                   <TableCell className="text-right tabular-nums text-xs font-bold text-emerald-600">
                     {s.rushYds}
                   </TableCell>
-                  <TableCell className="text-right tabular-nums text-xs font-black">
-                    {(s.passTDs || 0) + (s.rushTDs || 0)}
+                  <TableCell className="text-right tabular-nums text-xs font-medium">
+                    {s.receptions}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums text-xs font-bold text-amber-600">
+                    {s.recYds}
                   </TableCell>
                 </TableRow>
               );

@@ -41,6 +41,7 @@ export interface Play {
   id: string;
   type: PlayType;
   player?: Player;
+  receiver?: Player; // Added for advanced passing stats
   yards: number;
   result: string;
   down: number;

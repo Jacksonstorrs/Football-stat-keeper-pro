@@ -5,52 +5,97 @@ import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hash, RotateCcw, Zap, ArrowRightLeft, Shield, Target } from "lucide-react";
+import { Hash, RotateCcw, Zap, Shield, Target, UserCheck } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
   roster: Player[];
   opponentRoster: Player[];
-  onAction: (type: PlayType, yards: number, player?: Player) => void;
+  onAction: (type: PlayType, yards: number, player?: Player, receiver?: Player) => void;
   onUndo: () => void;
   canUndo: boolean;
+  isHomeTeam: boolean;
 }
 
-const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAction, onUndo, canUndo }) => {
+const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAction, onUndo, canUndo, isHomeTeam }) => {
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
+  const [selectedReceiver, setSelectedReceiver] = useState<Player | null>(null);
   const [pendingAction, setPendingAction] = useState<PlayType | null>(null);
+  const [step, setStep] = useState<"player" | "receiver" | "yards">("player");
   const [yardage, setYardage] = useState("");
 
   const handleActionClick = (type: PlayType) => {
     if (type === "Incomplete" || type === "Turnover") {
       onAction(type, 0, selectedPlayer || undefined);
       reset();
+    } else if (type === "Pass" && isHomeTeam) {
+      setPendingAction(type);
+      setStep("receiver");
     } else {
       setPendingAction(type);
+      setStep("yards");
     }
+  };
+
+  const handleReceiverSelect = (player: Player) => {
+    setSelectedReceiver(player);
+    setStep("yards");
   };
 
   const handleConfirmYardage = () => {
     const yards = parseInt(yardage) || 0;
     if (pendingAction) {
-      onAction(pendingAction, yards, selectedPlayer || undefined);
+      onAction(pendingAction, yards, selectedPlayer || undefined, selectedReceiver || undefined);
       reset();
     }
   };
 
   const reset = () => {
     setSelectedPlayer(null);
+    setSelectedReceiver(null);
     setPendingAction(null);
+    setStep("player");
     setYardage("");
   };
 
-  if (pendingAction) {
+  if (step === "receiver") {
+    return (
+      <div className="space-y-4 animate-in fade-in zoom-in duration-200">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-black uppercase tracking-tighter flex items-center gap-2 text-blue-600">
+            <UserCheck className="w-4 h-4" />
+            Select Receiver
+          </h3>
+          <Button variant="ghost" size="sm" onClick={() => setStep("player")} className="text-[10px] font-bold uppercase">Back</Button>
+        </div>
+        <div className="bg-slate-100 rounded-xl p-1">
+          <ScrollArea className="h-48 w-full">
+            <div className="grid grid-cols-2 gap-1 p-1">
+              {roster.filter(p => p.id !== selectedPlayer?.id).map((player) => (
+                <Button
+                  key={player.id}
+                  variant="ghost"
+                  className="justify-start h-10 px-2 text-xs font-bold hover:bg-white"
+                  onClick={() => handleReceiverSelect(player)}
+                >
+                  <span className="w-6 text-left opacity-50">#{player.number}</span>
+                  <span className="truncate">{player.name}</span>
+                </Button>
+              ))}
+            </div>
+          </ScrollArea>
+        </div>
+      </div>
+    );
+  }
+
+  if (step === "yards") {
     return (
       <YardageInput 
         value={yardage}
         onChange={setYardage}
         onConfirm={handleConfirmYardage}
-        onCancel={() => setPendingAction(null)}
+        onCancel={() => setStep(pendingAction === "Pass" && isHomeTeam ? "receiver" : "player")}
       />
     );
   }

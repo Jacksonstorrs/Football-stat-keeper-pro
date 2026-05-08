@@ -178,8 +178,11 @@ const Index = () => {
     return Math.round(finalProb);
   };
 
-  const updatePlayerStats = (stats: Record<string, PlayerStats>, player: Player, type: PlayType, yards: number) => {
-    const current = stats[player.id] || {
+  const updatePlayerStats = (stats: Record<string, PlayerStats>, player: Player, type: PlayType, yards: number, receiver?: Player) => {
+    const newStats = { ...stats };
+    
+    // Update primary player (Passer/Rusher)
+    const current = newStats[player.id] || {
       passAtt: 0, passComp: 0, passYds: 0, passTDs: 0, ints: 0,
       rushAtt: 0, rushYds: 0, rushTDs: 0, receptions: 0, recYds: 0,
       recTDs: 0, fumbles: 0, tackles: 0, sacks: 0
@@ -194,10 +197,25 @@ const Index = () => {
       case "Touchdown": updated.rushTDs += 1; break;
       case "Turnover": updated.ints += 1; break;
     }
-    return { ...stats, [player.id]: updated };
+    newStats[player.id] = updated;
+
+    // Update receiver if present
+    if (receiver && type === "Pass") {
+      const recCurrent = newStats[receiver.id] || {
+        passAtt: 0, passComp: 0, passYds: 0, passTDs: 0, ints: 0,
+        rushAtt: 0, rushYds: 0, rushTDs: 0, receptions: 0, recYds: 0,
+        recTDs: 0, fumbles: 0, tackles: 0, sacks: 0
+      };
+      const recUpdated = { ...recCurrent };
+      recUpdated.receptions += 1;
+      recUpdated.recYds += yards;
+      newStats[receiver.id] = recUpdated;
+    }
+
+    return newStats;
   };
 
-  const handleAction = (type: PlayType, yards: number, player?: Player) => {
+  const handleAction = (type: PlayType, yards: number, player?: Player, receiver?: Player) => {
     saveToHistory();
     
     setGameState(prev => {
@@ -223,7 +241,7 @@ const Index = () => {
         newState.distance = 10;
         result = "TOUCHDOWN!";
         possessionChanged = true;
-        if (player) newState.stats = updatePlayerStats(newState.stats, player, type, yards);
+        if (player) newState.stats = updatePlayerStats(newState.stats, player, type, yards, receiver);
       } else if (type === "Turnover" || type === "Punt") {
         newState.possession = prev.possession === "Home" ? "Away" : "Home";
         newState.down = 1;
@@ -234,9 +252,14 @@ const Index = () => {
       } else {
         const direction = prev.possession === "Home" ? 1 : -1;
         newYardLine = Math.max(0, Math.min(100, currentYardLine + (yards * direction)));
-        result = `${type} for ${yards} yards`;
         
-        if (player) newState.stats = updatePlayerStats(newState.stats, player, type, yards);
+        if (type === "Pass" && receiver) {
+          result = `Pass from #${player?.number} to #${receiver.number} for ${yards} yards`;
+        } else {
+          result = `${type} for ${yards} yards`;
+        }
+        
+        if (player) newState.stats = updatePlayerStats(newState.stats, player, type, yards, receiver);
 
         if (yards >= prev.distance && type !== "Incomplete" && type !== "Penalty") {
           newState.down = 1;
@@ -258,7 +281,7 @@ const Index = () => {
 
       const newPlay: Play = {
         id: Math.random().toString(36).substr(2, 9),
-        type, player, yards, result,
+        type, player, receiver, yards, result,
         down: prev.down, distance: prev.distance, yardLine: currentYardLine,
         possession: prev.possession, timestamp: Date.now(),
         isFirstDown, isScoringPlay, driveId: prev.currentDriveId
@@ -422,6 +445,7 @@ const Index = () => {
                   onAction={handleAction}
                   onUndo={handleUndo}
                   canUndo={history.length > 0}
+                  isHomeTeam={gameState.possession === "Home"}
                 />
               </div>
             </div>

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft } from "lucide-react";
+import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, UserPlus } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
@@ -207,12 +207,6 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
             </Button>
             <Button variant="destructive" className="h-14 font-black uppercase tracking-widest shadow-lg shadow-red-100" onClick={() => handleActionClick("Turnover")}>TO</Button>
           </div>
-          
-          <div className="grid grid-cols-3 gap-2">
-            <Button variant="secondary" className="h-10 text-[10px] font-black uppercase tracking-widest bg-slate-100" onClick={() => handleActionClick("Field Goal")}>FG</Button>
-            <Button variant="secondary" className="h-10 text-[10px] font-black uppercase tracking-widest bg-slate-100" onClick={() => handleActionClick("Punt")}>Punt</Button>
-            <Button variant="secondary" className="h-10 text-[10px] font-black uppercase tracking-widest bg-slate-100" onClick={() => handleActionClick("Kickoff")}>Kick</Button>
-          </div>
         </TabsContent>
 
         <TabsContent value="defense" className="space-y-6 animate-in fade-in duration-300">
@@ -247,7 +241,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({ roster, opponentRoster, onAct
             </Button>
             <Button variant="secondary" className="h-14 font-black uppercase tracking-widest gap-3 bg-slate-100 hover:bg-slate-200" onClick={() => handleActionClick("Fumble")}>
               <Hash className="w-4 h-4" /> Fumble
-            </Hash>
+            </Button>
             <Button variant="secondary" className="h-14 font-black uppercase tracking-widest bg-slate-100 hover:bg-slate-200" onClick={() => handleActionClick("Penalty")}>Penalty</Button>
           </div>
         </TabsContent>

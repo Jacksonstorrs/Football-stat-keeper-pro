@@ -21,18 +21,18 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal, RefreshCw, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { useBroadcast } from "@/context/BroadcastContext";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
-import { useFileSystemSync } from "@/hooks/useFileSystemSync";
-import { generateDxtrXml } from "@/utils/dxtrXmlGenerator";
+import { Badge } from "@/components/ui/badge";
 
 const TEAM_STORAGE_KEY = 'football_stat_keeper_teams_v1';
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 
 const Index = () => {
   const { teamCode, isAdmin } = useAuth();
+  const { connected } = useBroadcast();
   const navigate = useNavigate();
-  const { sync, status } = useFileSystemSync();
   const [history, setHistory] = useState<GameState[]>([]);
   const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
@@ -102,14 +102,6 @@ const Index = () => {
       return () => clearTimeout(timeout);
     }
   }, [gameState, teamCode, isAdmin]);
-
-  // Sync to Local File for Broadcast
-  useEffect(() => {
-    if (status.connected) {
-      const xml = generateDxtrXml(gameState);
-      sync(xml);
-    }
-  }, [gameState, status.connected, sync]);
 
   useEffect(() => {
     if (gameState.isClockRunning && gameState.gameClock > 0) {
@@ -283,7 +275,7 @@ const Index = () => {
               <h1 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Home Team Command</h1>
               <div className="flex items-center gap-2">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DakStats Workflow Active</p>
-                {status.connected && (
+                {connected && (
                   <Badge className="h-4 bg-emerald-500/10 text-emerald-600 border-emerald-200 text-[8px] font-black uppercase px-1.5">
                     Broadcast Live
                   </Badge>
@@ -294,7 +286,7 @@ const Index = () => {
           <div className="flex items-center gap-4">
             <Link to="/broadcast-sync">
               <Button variant="outline" size="sm" className="h-12 font-black uppercase text-[10px] gap-2 border-blue-100 text-blue-600 hover:bg-blue-50">
-                <RefreshCw className={`w-4 h-4 ${status.connected ? 'animate-spin-slow' : ''}`} /> Broadcast Sync
+                <RefreshCw className={`w-4 h-4 ${connected ? 'animate-spin-slow' : ''}`} /> Broadcast Sync
               </Button>
             </Link>
             

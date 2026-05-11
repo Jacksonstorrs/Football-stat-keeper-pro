@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from "@/context/AuthContext";
-import { useFileSystemSync } from "@/hooks/useFileSystemSync";
+import { useBroadcast } from "@/context/BroadcastContext";
 import { generateDxtrXml } from "@/utils/dxtrXmlGenerator";
 import { GameState } from "@/types/football";
 import { Card } from "@/components/ui/card";
@@ -11,8 +11,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { 
   FileCode, HardDrive, CheckCircle2, 
-  AlertCircle, ArrowLeft, ExternalLink,
-  Settings2, Clock
+  AlertCircle, ArrowLeft, Settings2, Clock
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
@@ -21,42 +20,22 @@ const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 
 const BroadcastSync = () => {
   const { teamCode } = useAuth();
-  const { connect, sync, status, autoSync, setAutoSync, disconnect } = useFileSystemSync();
-  const [gameState, setGameState] = useState<GameState | null>(null);
+  const { connected, lastSync, fileName, error, autoSync, setAutoSync, connect, disconnect } = useBroadcast();
   const [xmlPreview, setXmlPreview] = useState("");
-  const lastSyncTime = useRef<number>(0);
 
-  // Load game state and update preview
+  // Update preview only
   useEffect(() => {
-    const loadGame = () => {
+    const loadPreview = () => {
       const saved = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
       if (saved) {
-        const parsed = JSON.parse(saved);
-        setGameState(parsed);
-        setXmlPreview(generateDxtrXml(parsed));
+        setXmlPreview(generateDxtrXml(JSON.parse(saved)));
       }
     };
 
-    loadGame();
-    const interval = setInterval(loadGame, 1000); // Refresh data every second
+    loadPreview();
+    const interval = setInterval(loadPreview, 1000);
     return () => clearInterval(interval);
   }, [teamCode]);
-
-  // Force sync every second if connected
-  useEffect(() => {
-    if (!status.connected || !autoSync || !gameState) return;
-
-    const syncInterval = setInterval(() => {
-      const now = Date.now();
-      // Ensure we don't double-sync if a state change just triggered one
-      if (now - lastSyncTime.current >= 900) {
-        sync(generateDxtrXml(gameState));
-        lastSyncTime.current = now;
-      }
-    }, 1000);
-
-    return () => clearInterval(syncInterval);
-  }, [gameState, status.connected, autoSync, sync]);
 
   return (
     <div className="min-h-screen bg-slate-50/50">
@@ -76,7 +55,7 @@ const BroadcastSync = () => {
           </div>
           
           <div className="flex items-center gap-3">
-            {status.connected ? (
+            {connected ? (
               <Button variant="destructive" onClick={disconnect} className="gap-2 font-bold uppercase text-xs">
                 Disconnect File
               </Button>
@@ -93,7 +72,7 @@ const BroadcastSync = () => {
             <Card className="p-6 border-none shadow-sm bg-white">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Sync Status</h3>
-                {status.connected ? (
+                {connected ? (
                   <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200 gap-1.5">
                     <CheckCircle2 className="w-3 h-3" /> Active
                   </Badge>
@@ -108,13 +87,13 @@ const BroadcastSync = () => {
                 <div className="flex justify-between items-center py-2 border-b border-slate-50">
                   <span className="text-[10px] font-black text-slate-400 uppercase">Target File</span>
                   <span className="text-xs font-bold text-slate-900 truncate max-w-[150px]">
-                    {status.fileName || "None selected"}
+                    {fileName || "None selected"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-slate-50">
                   <span className="text-[10px] font-black text-slate-400 uppercase">Last Heartbeat</span>
                   <span className="text-xs font-bold text-slate-900">
-                    {status.lastSync ? status.lastSync.toLocaleTimeString() : "Never"}
+                    {lastSync ? lastSync.toLocaleTimeString() : "Never"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2">
@@ -126,10 +105,10 @@ const BroadcastSync = () => {
                 </div>
               </div>
 
-              {status.error && (
+              {error && (
                 <div className="mt-6 p-3 bg-red-50 border border-red-100 rounded-lg flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 text-red-500 mt-0.5" />
-                  <p className="text-[10px] text-red-600 font-medium leading-tight">{status.error}</p>
+                  <p className="text-[10px] text-red-600 font-medium leading-tight">{error}</p>
                 </div>
               )}
             </Card>
@@ -156,7 +135,7 @@ const BroadcastSync = () => {
                 <h3 className="text-xs font-black uppercase tracking-widest text-white">Live XML Stream</h3>
               </div>
               <div className="flex items-center gap-2">
-                <div className={`w-2 h-2 rounded-full ${status.connected && autoSync ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`} />
+                <div className={`w-2 h-2 rounded-full ${connected && autoSync ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`} />
                 <span className="text-[10px] font-black text-slate-500 uppercase">1.0 Hz Heartbeat</span>
               </div>
             </div>

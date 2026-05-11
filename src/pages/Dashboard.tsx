@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
@@ -12,8 +12,38 @@ import {
 } from "lucide-react";
 import Header from "@/components/Header";
 
+const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
+
 const Dashboard = () => {
   const { teamCode } = useAuth();
+  const [stats, setStats] = useState({
+    gamesPlayed: 0,
+    winRate: 0,
+    recentActivity: []
+  });
+
+  useEffect(() => {
+    if (!teamCode) return;
+
+    const loadStats = () => {
+      const saved = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
+      if (saved) {
+        const games = JSON.parse(saved);
+        const completedGames = games.filter((g: any) => g.status === 'completed');
+        const wins = completedGames.filter((g: any) => g.winner === teamCode || (g.homeTeam === teamCode && g.homeScore > g.awayScore) || (g.awayTeam === teamCode && g.awayScore > g.homeScore)).length;
+        
+        setStats({
+          gamesPlayed: completedGames.length,
+          winRate: completedGames.length > 0 ? Math.round((wins / completedGames.length) * 100) : 0,
+          recentActivity: games.slice(0, 5)
+        });
+      }
+    };
+
+    loadStats();
+    window.addEventListener('storage', loadStats);
+    return () => window.removeEventListener('storage', loadStats);
+  }, [teamCode]);
 
   const menuItems = [
     {
@@ -106,14 +136,30 @@ const Dashboard = () => {
                   <p className="text-[10px] text-slate-400 font-bold uppercase">Last 24 Hours</p>
                 </div>
               </div>
-              <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">View History</Button>
+              <Link to="/games">
+                <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">View History</Button>
+              </Link>
             </div>
             
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
-                <Activity className="w-8 h-8" />
-              </div>
-              <p className="text-slate-400 text-sm font-medium italic">No recent activity recorded.</p>
+            <div className="space-y-4">
+              {stats.recentActivity.length > 0 ? (
+                stats.recentActivity.map((game: any, i) => (
+                  <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                    <div className="flex items-center gap-4">
+                      <div className="text-[10px] font-black text-slate-400 uppercase">{game.date || 'Live'}</div>
+                      <div className="font-bold text-sm">{game.homeTeam} vs {game.awayTeam}</div>
+                    </div>
+                    <div className="font-black text-slate-900">{game.homeScore} - {game.awayScore}</div>
+                  </div>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12 text-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
+                    <Activity className="w-8 h-8" />
+                  </div>
+                  <p className="text-slate-400 text-sm font-medium italic">No recent activity recorded.</p>
+                </div>
+              )}
             </div>
           </Card>
 
@@ -128,20 +174,23 @@ const Dashboard = () => {
                   <div className="flex justify-between items-end">
                     <div>
                       <div className="text-[10px] font-black text-slate-500 uppercase mb-1">Games Played</div>
-                      <div className="text-3xl font-black">0</div>
+                      <div className="text-3xl font-black">{stats.gamesPlayed}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-[10px] font-black text-slate-500 uppercase mb-1">Win Rate</div>
-                      <div className="text-3xl font-black text-emerald-400">0%</div>
+                      <div className="text-3xl font-black text-emerald-400">{stats.winRate}%</div>
                     </div>
                   </div>
                   <div className="pt-6 border-t border-white/10">
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-[10px] font-black text-slate-500 uppercase">Season Progress</span>
-                      <span className="text-[10px] font-black text-slate-400">0 / 12 Games</span>
+                      <span className="text-[10px] font-black text-slate-400">{stats.gamesPlayed} / 12 Games</span>
                     </div>
                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
-                      <div className="h-full w-0 bg-blue-500 rounded-full" />
+                      <div 
+                        className="h-full bg-blue-500 rounded-full transition-all duration-1000" 
+                        style={{ width: `${(stats.gamesPlayed / 12) * 100}%` }}
+                      />
                     </div>
                   </div>
                 </div>
@@ -151,12 +200,16 @@ const Dashboard = () => {
             <Card className="p-6 bg-white border-none shadow-sm">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-3">
-                <Button variant="outline" className="h-12 text-[10px] font-black uppercase tracking-widest border-slate-100 hover:bg-slate-50">
-                  <Users className="w-3 h-3 mr-2" /> Roster
-                </Button>
-                <Button variant="outline" className="h-12 text-[10px] font-black uppercase tracking-widest border-slate-100 hover:bg-slate-50">
-                  <Calendar className="w-3 h-3 mr-2" /> Schedule
-                </Button>
+                <Link to="/teams">
+                  <Button variant="outline" className="w-full h-12 text-[10px] font-black uppercase tracking-widest border-slate-100 hover:bg-slate-50">
+                    <Users className="w-3 h-3 mr-2" /> Roster
+                  </Button>
+                </Link>
+                <Link to="/games">
+                  <Button variant="outline" className="w-full h-12 text-[10px] font-black uppercase tracking-widest border-slate-100 hover:bg-slate-50">
+                    <Calendar className="w-3 h-3 mr-2" /> Schedule
+                  </Button>
+                </Link>
               </div>
             </Card>
           </div>

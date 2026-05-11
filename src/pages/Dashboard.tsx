@@ -8,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { 
   Trophy, Users, Calendar, 
   BarChart3, PlayCircle, History, ArrowRight,
-  Activity, Target, Zap, Radio, Share2
+  Activity, Target, Zap, Radio, Share2, Copy, Check
 } from "lucide-react";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
+import { showSuccess } from "@/utils/toast";
 
 const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
@@ -24,12 +25,12 @@ const Dashboard = () => {
     recentActivity: []
   });
   const [activeGame, setActiveGame] = useState<any>(null);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (!teamCode) return;
 
     const loadData = () => {
-      // Load Season Stats
       const savedSeason = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
       if (savedSeason) {
         const games = JSON.parse(savedSeason);
@@ -43,11 +44,9 @@ const Dashboard = () => {
         });
       }
 
-      // Load Active Game
       const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
       if (savedGame) {
         const game = JSON.parse(savedGame);
-        // Only show as active if it has plays or score
         if (game.playLog?.length > 0 || game.homeScore > 0 || game.awayScore > 0) {
           setActiveGame(game);
         }
@@ -58,6 +57,14 @@ const Dashboard = () => {
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
   }, [teamCode]);
+
+  const handleCopyLink = () => {
+    const link = `${window.location.origin}/live/${teamCode}`;
+    navigator.clipboard.writeText(link);
+    setCopied(true);
+    showSuccess("Live link copied to clipboard");
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   const menuItems = [
     {
@@ -114,6 +121,14 @@ const Dashboard = () => {
             <p className="text-slate-500 font-medium mt-2">Team Management & Performance Analytics</p>
           </div>
           <div className="flex gap-3">
+            <Button 
+              variant="outline" 
+              onClick={handleCopyLink}
+              className="h-14 px-6 font-black uppercase tracking-widest gap-2 border-slate-200 dark:border-white/10"
+            >
+              {copied ? <Check className="w-4 h-4 text-emerald-500" /> : <Share2 className="w-4 h-4" />}
+              Share Live
+            </Button>
             <Link to="/tracker">
               <Button className="h-14 px-8 bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-slate-200 dark:shadow-none transition-all active:scale-95">
                 <PlayCircle className="w-5 h-5" />

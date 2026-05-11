@@ -19,16 +19,29 @@ const FootballField: React.FC<FootballFieldProps> = ({ ballPosition, possession,
     onSpotBall(percentage);
   };
 
+  const isRedZone = ballPosition <= 20 || ballPosition >= 80;
+
   return (
-    <div className="w-full space-y-2">
-      <div className="flex justify-between text-xs font-bold text-muted-foreground px-2">
-        <span>HOME</span>
-        <span>AWAY</span>
+    <div className="w-full space-y-4">
+      <div className="flex justify-between items-center px-2">
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Home End</span>
+        {isRedZone && (
+          <div className="flex items-center gap-1.5 animate-pulse">
+            <div className="w-1.5 h-1.5 bg-red-500 rounded-full" />
+            <span className="text-[10px] font-black text-red-500 uppercase tracking-widest">Red Zone Alert</span>
+          </div>
+        )}
+        <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Away End</span>
       </div>
+      
       <div 
-        className="relative h-32 w-full bg-emerald-600 rounded-lg border-4 border-white/20 overflow-hidden cursor-crosshair shadow-inner"
+        className="relative h-40 w-full bg-emerald-600 dark:bg-emerald-700 rounded-2xl border-4 border-white/20 overflow-hidden cursor-crosshair shadow-2xl"
         onClick={handleClick}
       >
+        {/* Red Zone Shading */}
+        <div className="absolute inset-y-0 left-0 w-[20%] bg-red-500/10 border-r border-red-500/20" />
+        <div className="absolute inset-y-0 right-0 w-[20%] bg-red-500/10 border-l border-red-500/20" />
+
         {/* Yard Lines */}
         {yardMarkers.map((yard) => (
           <div 
@@ -39,7 +52,7 @@ const FootballField: React.FC<FootballFieldProps> = ({ ballPosition, possession,
             )}
             style={{ left: `${yard}%` }}
           >
-            <span className="text-[10px] text-white/40 font-bold select-none mt-20">
+            <span className="text-[10px] text-white/40 font-black select-none mt-28">
               {yard === 0 || yard === 100 ? "" : yard > 50 ? 100 - yard : yard}
             </span>
           </div>
@@ -51,16 +64,22 @@ const FootballField: React.FC<FootballFieldProps> = ({ ballPosition, possession,
         {/* Ball Marker */}
         <div 
           className={cn(
-            "absolute top-1/2 -translate-y-1/2 w-4 h-6 bg-amber-800 rounded-full border-2 border-white shadow-lg transition-all duration-300 ease-out",
+            "absolute top-1/2 -translate-y-1/2 w-5 h-8 bg-amber-900 rounded-full border-2 border-white shadow-2xl transition-all duration-500 ease-out z-10",
             possession === "Home" ? "rotate-12" : "-rotate-12"
           )}
-          style={{ left: `calc(${ballPosition}% - 8px)` }}
+          style={{ left: `calc(${ballPosition}% - 10px)` }}
         >
-          <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-white/50" />
+          <div className="absolute top-1/2 left-0 right-0 h-[1px] bg-white/30" />
+          <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-transparent rounded-full" />
         </div>
       </div>
-      <div className="text-center text-sm font-medium text-emerald-700">
-        Ball at: {ballPosition > 50 ? `Away ${100 - ballPosition}` : ballPosition === 50 ? "50" : `Home ${ballPosition}`}
+      
+      <div className="flex justify-center">
+        <div className="px-4 py-1.5 bg-slate-900 dark:bg-white rounded-full shadow-lg">
+          <span className="text-xs font-black text-white dark:text-slate-900 uppercase tracking-widest">
+            Ball at: {ballPosition > 50 ? `Away ${100 - ballPosition}` : ballPosition === 50 ? "50" : `Home ${ballPosition}`}
+          </span>
+        </div>
       </div>
     </div>
   );

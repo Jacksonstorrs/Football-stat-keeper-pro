@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from "@/context/AuthContext";
 import { useFileSystemSync } from "@/hooks/useFileSystemSync";
 import { generateDxtrXml } from "@/utils/dxtrXmlGenerator";
@@ -8,12 +8,11 @@ import { GameState } from "@/types/football";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { 
-  Radio, FileCode, HardDrive, RefreshCw, 
-  CheckCircle2, AlertCircle, ArrowLeft, ExternalLink,
-  Play, Pause, Settings2
+  FileCode, HardDrive, CheckCircle2, 
+  AlertCircle, ArrowLeft, ExternalLink,
+  Settings2, Clock
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import Header from "@/components/Header";
@@ -25,8 +24,9 @@ const BroadcastSync = () => {
   const { connect, sync, status, autoSync, setAutoSync, disconnect } = useFileSystemSync();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [xmlPreview, setXmlPreview] = useState("");
+  const lastSyncTime = useRef<number>(0);
 
-  // Load game state for preview
+  // Load game state and update preview
   useEffect(() => {
     const loadGame = () => {
       const saved = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
@@ -38,15 +38,24 @@ const BroadcastSync = () => {
     };
 
     loadGame();
-    const interval = setInterval(loadGame, 2000); // Refresh preview periodically
+    const interval = setInterval(loadGame, 1000); // Refresh data every second
     return () => clearInterval(interval);
   }, [teamCode]);
 
-  // Trigger sync when game state changes
+  // Force sync every second if connected
   useEffect(() => {
-    if (gameState && status.connected && autoSync) {
-      sync(generateDxtrXml(gameState));
-    }
+    if (!status.connected || !autoSync || !gameState) return;
+
+    const syncInterval = setInterval(() => {
+      const now = Date.now();
+      // Ensure we don't double-sync if a state change just triggered one
+      if (now - lastSyncTime.current >= 900) {
+        sync(generateDxtrXml(gameState));
+        lastSyncTime.current = now;
+      }
+    }, 1000);
+
+    return () => clearInterval(syncInterval);
   }, [gameState, status.connected, autoSync, sync]);
 
   return (
@@ -73,25 +82,24 @@ const BroadcastSync = () => {
               </Button>
             ) : (
               <Button onClick={connect} className="gap-2 bg-blue-600 hover:bg-blue-500 font-black uppercase tracking-widest shadow-lg shadow-blue-100">
-                <HardDrive className="w-4 h-4" /> Connect Local File
+                <HardDrive className="w-4 h-4" /> Link Local File
               </Button>
             )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Status Panel */}
           <div className="space-y-6">
             <Card className="p-6 border-none shadow-sm bg-white">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-xs font-black uppercase tracking-widest text-slate-400">Sync Status</h3>
                 {status.connected ? (
                   <Badge className="bg-emerald-500/10 text-emerald-600 border-emerald-200 gap-1.5">
-                    <CheckCircle2 className="w-3 h-3" /> Connected
+                    <CheckCircle2 className="w-3 h-3" /> Active
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="text-slate-400 gap-1.5">
-                    <AlertCircle className="w-3 h-3" /> Disconnected
+                    <AlertCircle className="w-3 h-3" /> Inactive
                   </Badge>
                 )}
               </div>
@@ -104,13 +112,16 @@ const BroadcastSync = () => {
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2 border-b border-slate-50">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Last Update</span>
+                  <span className="text-[10px] font-black text-slate-400 uppercase">Last Heartbeat</span>
                   <span className="text-xs font-bold text-slate-900">
                     {status.lastSync ? status.lastSync.toLocaleTimeString() : "Never"}
                   </span>
                 </div>
                 <div className="flex justify-between items-center py-2">
-                  <span className="text-[10px] font-black text-slate-400 uppercase">Auto-Sync</span>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] font-black text-slate-400 uppercase">Auto-Overwrite</span>
+                    <span className="text-[8px] text-slate-400 font-bold uppercase">1s Interval</span>
+                  </div>
                   <Switch checked={autoSync} onCheckedChange={setAutoSync} />
                 </div>
               </div>
@@ -129,35 +140,30 @@ const BroadcastSync = () => {
                 <h3 className="text-xs font-black uppercase tracking-widest">DXTR Configuration</h3>
               </div>
               <p className="text-[10px] text-slate-400 leading-relaxed mb-4">
-                Point your Daktronics DXTR software to the connected XML file. Ensure the "Stat Crew" data source is selected in your graphics controller.
+                The system is now configured to overwrite the linked file every second. This provides a constant data stream for Daktronics DXTR or Stat Crew software.
               </p>
-              <Button variant="outline" className="w-full h-10 text-[10px] font-black uppercase border-white/10 hover:bg-white/5 text-white">
-                View Documentation <ExternalLink className="w-3 h-3 ml-2" />
-              </Button>
+              <div className="p-3 bg-white/5 rounded-lg border border-white/10 flex items-center gap-3">
+                <Clock className="w-4 h-4 text-amber-400" />
+                <span className="text-[10px] font-bold text-slate-300 uppercase">High-Frequency Sync Active</span>
+              </div>
             </Card>
           </div>
 
-          {/* XML Preview */}
           <Card className="lg:col-span-2 p-0 border-none shadow-xl bg-slate-950 overflow-hidden flex flex-col">
             <div className="px-6 py-4 bg-slate-900 border-b border-white/5 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <FileCode className="w-4 h-4 text-blue-400" />
-                <h3 className="text-xs font-black uppercase tracking-widest text-white">Live XML Output</h3>
+                <h3 className="text-xs font-black uppercase tracking-widest text-white">Live XML Stream</h3>
               </div>
               <div className="flex items-center gap-2">
                 <div className={`w-2 h-2 rounded-full ${status.connected && autoSync ? 'bg-emerald-500 animate-pulse' : 'bg-slate-700'}`} />
-                <span className="text-[10px] font-black text-slate-500 uppercase">Real-time Stream</span>
+                <span className="text-[10px] font-black text-slate-500 uppercase">1.0 Hz Heartbeat</span>
               </div>
             </div>
             <div className="flex-1 p-6 overflow-auto max-h-[600px]">
               <pre className="text-[11px] font-mono text-blue-300 leading-relaxed">
-                {xmlPreview || "No game data available for preview."}
+                {xmlPreview || "Waiting for game data..."}
               </pre>
-            </div>
-            <div className="px-6 py-3 bg-slate-900/50 border-t border-white/5 text-center">
-              <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em]">
-                Stat Crew Football Schema v1.0
-              </p>
             </div>
           </Card>
         </div>

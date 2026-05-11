@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { showSuccess, showError } from '@/utils/toast';
 
 interface SyncStatus {
@@ -19,12 +19,13 @@ export const useFileSystemSync = () => {
     error: null
   });
   const [autoSync, setAutoSync] = useState(true);
+  const isSyncing = useRef(false);
 
   // Connect to a file
   const connect = useCallback(async () => {
     try {
       const handle = await window.showSaveFilePicker({
-        suggestedName: 'game_data.xml',
+        suggestedName: 'dakstats_output.xml',
         types: [{
           description: 'XML Files',
           accept: { 'text/xml': ['.xml'] },
@@ -38,30 +39,24 @@ export const useFileSystemSync = () => {
         fileName: handle.name,
         error: null
       }));
-      showSuccess(`Connected to ${handle.name}`);
+      showSuccess(`Linked to ${handle.name}`);
     } catch (err: any) {
       if (err.name !== 'AbortError') {
         setStatus(prev => ({ ...prev, error: err.message }));
-        showError("Failed to connect to file");
+        showError("Failed to link file");
       }
     }
   }, []);
 
-  // Write data to the file
+  // Write data to the file (Overwrites every time)
   const sync = useCallback(async (data: string) => {
-    if (!fileHandle || !autoSync) return;
+    if (!fileHandle || !autoSync || isSyncing.current) return;
 
     try {
-      // Check for permissions
-      const permission = await fileHandle.queryPermission({ mode: 'readwrite' });
-      if (permission !== 'granted') {
-        // We can't automatically request permission without user gesture in some browsers
-        // but we'll try to update status
-        setStatus(prev => ({ ...prev, connected: false, error: "Permission required" }));
-        return;
-      }
-
-      const writable = await fileHandle.createWritable();
+      isSyncing.current = true;
+      
+      // Create a writable stream (this automatically handles overwriting)
+      const writable = await fileHandle.createWritable({ keepExistingData: false });
       await writable.write(data);
       await writable.close();
 
@@ -73,7 +68,17 @@ export const useFileSystemSync = () => {
       }));
     } catch (err: any) {
       console.error("Sync error:", err);
-      setStatus(prev => ({ ...prev, connected: false, error: err.message }));
+      // If we lose permission or the handle becomes stale
+      if (err.name === 'NotAllowedError' || err.name === 'NotFoundError') {
+        setFileHandle(null);
+        setStatus(prev => ({ 
+          ...prev, 
+          connected: false, 
+          error: "Connection lost. Please re-link the file." 
+        }));
+      }
+    } finally {
+      isSyncing.current = false;
     }
   }, [fileHandle, autoSync]);
 

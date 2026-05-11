@@ -18,7 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal, RefreshCw } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal, RefreshCw, Trash2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
@@ -35,22 +35,21 @@ const Index = () => {
   const { sync, status } = useFileSystemSync();
   const [history, setHistory] = useState<GameState[]>([]);
   const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
-  const [gameState, setGameState] = useState<GameState>(() => {
-    const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
-    if (savedGame) return JSON.parse(savedGame);
-    
+  const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+
+  const getInitialState = useCallback(() => {
     const savedTeams = localStorage.getItem(`${TEAM_STORAGE_KEY}_${teamCode}`);
     const teamData = savedTeams ? JSON.parse(savedTeams) : null;
     
     const initialDriveId = Math.random().toString(36).substr(2, 9);
     return {
-      homeTeam: teamData?.homeTeamName || "Wildcats",
-      awayTeam: teamData?.awayTeamName || "Opponent",
+      homeTeam: teamData?.homeTeamName || "Home Team",
+      awayTeam: teamData?.awayTeamName || "Away Team",
       homeScore: 0,
       awayScore: 0,
       homeTimeouts: 3,
       awayTimeouts: 3,
-      possession: "Home",
+      possession: "Home" as Team,
       down: 1,
       distance: 10,
       yardLine: 25,
@@ -61,7 +60,7 @@ const Index = () => {
       playLog: [],
       drives: [{
         id: initialDriveId,
-        team: "Home",
+        team: "Home" as Team,
         startYardLine: 25,
         plays: 0,
         yards: 0,
@@ -73,6 +72,12 @@ const Index = () => {
         away: teamData?.awayRoster || [] 
       }
     };
+  }, [teamCode]);
+
+  const [gameState, setGameState] = useState<GameState>(() => {
+    const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
+    if (savedGame) return JSON.parse(savedGame);
+    return getInitialState();
   });
 
   const [manualAdjust, setManualAdjust] = useState({
@@ -257,6 +262,14 @@ const Index = () => {
     showSuccess("Game state adjusted");
   };
 
+  const handleResetGame = () => {
+    const freshState = getInitialState();
+    setGameState(freshState);
+    setHistory([]);
+    setIsResetDialogOpen(false);
+    showSuccess("Game reset to initial state");
+  };
+
   const currentDrive = gameState.drives.find(d => d.id === gameState.currentDriveId);
 
   return (
@@ -284,6 +297,27 @@ const Index = () => {
                 <RefreshCw className={`w-4 h-4 ${status.connected ? 'animate-spin-slow' : ''}`} /> Broadcast Sync
               </Button>
             </Link>
+            
+            <Dialog open={isResetDialogOpen} onOpenChange={setIsResetDialogOpen}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="sm" className="h-12 font-black uppercase text-[10px] gap-2 text-red-500 hover:bg-red-50 border-red-100">
+                  <Trash2 className="w-4 h-4" /> Reset Game
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Reset Current Game?</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                  <p className="text-sm text-slate-500">This will clear all scores, plays, and stats for the current session. This action cannot be undone.</p>
+                </div>
+                <DialogFooter>
+                  <Button variant="ghost" onClick={() => setIsResetDialogOpen(false)}>Cancel</Button>
+                  <Button variant="destructive" onClick={handleResetGame}>Reset Everything</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
             <Dialog open={isAdjustDialogOpen} onOpenChange={setIsAdjustDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="h-12 font-black uppercase text-[10px] gap-2">

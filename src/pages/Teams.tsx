@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Player } from "@/types/football";
-import { UserPlus, Trash2, Save, ArrowLeft, Shield, Users, Trophy } from "lucide-react";
+import { UserPlus, Trash2, Save, ArrowLeft, Shield, Users, Trophy, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { showSuccess } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
@@ -16,8 +16,8 @@ const STORAGE_KEY = 'football_stat_keeper_teams_v1';
 
 const Teams = () => {
   const { teamCode } = useAuth();
-  const [homeTeamName, setHomeTeamName] = useState("Wildcats");
-  const [awayTeamName, setAwayTeamName] = useState("Eagles");
+  const [homeTeamName, setHomeTeamName] = useState("");
+  const [awayTeamName, setAwayTeamName] = useState("");
   const [homeRoster, setHomeRoster] = useState<Player[]>([]);
   const [awayRoster, setAwayRoster] = useState<Player[]>([]);
 
@@ -25,25 +25,29 @@ const Teams = () => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
     if (saved) {
       const d = JSON.parse(saved);
-      setHomeTeamName(d.homeTeamName || "Wildcats");
-      setAwayTeamName(d.awayTeamName || "Eagles");
+      setHomeTeamName(d.homeTeamName || "");
+      setAwayTeamName(d.awayTeamName || "");
       setHomeRoster(d.homeRoster || []);
       setAwayRoster(d.awayRoster || []);
     }
   }, [teamCode]);
 
   const saveTeams = () => {
+    if (!homeTeamName || !awayTeamName) {
+      showSuccess("Please enter both team names before saving.");
+      return;
+    }
     const data = { homeTeamName, awayTeamName, homeRoster, awayRoster };
     localStorage.setItem(`${STORAGE_KEY}_${teamCode}`, JSON.stringify(data));
-    showSuccess("Team data saved locally");
+    showSuccess("Team data saved successfully");
   };
 
   const addPlayer = (team: 'home' | 'away') => {
     const newPlayer: Player = {
       id: Math.random().toString(36).substr(2, 9),
-      name: "New Player",
+      name: "",
       number: 0,
-      position: "QB"
+      position: ""
     };
     if (team === 'home') setHomeRoster([...homeRoster, newPlayer]);
     else setAwayRoster([...awayRoster, newPlayer]);
@@ -83,9 +87,10 @@ const Teams = () => {
                 <Label className="text-[10px] uppercase text-slate-400">No.</Label>
                 <Input 
                   type="number" 
-                  value={player.number} 
+                  value={player.number || ""} 
                   onChange={(e) => updatePlayer(team, player.id, 'number', parseInt(e.target.value) || 0)}
                   className="h-8 font-bold"
+                  placeholder="00"
                 />
               </div>
               <div className="flex-1">
@@ -94,6 +99,7 @@ const Teams = () => {
                   value={player.name} 
                   onChange={(e) => updatePlayer(team, player.id, 'name', e.target.value)}
                   className="h-8"
+                  placeholder="Player Name"
                 />
               </div>
               <div className="w-20">
@@ -102,6 +108,7 @@ const Teams = () => {
                   value={player.position} 
                   onChange={(e) => updatePlayer(team, player.id, 'position', e.target.value)}
                   className="h-8 uppercase"
+                  placeholder="QB"
                 />
               </div>
               <Button 
@@ -140,6 +147,13 @@ const Teams = () => {
           </Button>
         </div>
 
+        {(!homeTeamName || !awayTeamName) && (
+          <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center gap-3 text-amber-800">
+            <AlertCircle className="w-5 h-5 text-amber-500" />
+            <p className="text-sm font-medium">Please enter team names to begin tracking stats.</p>
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
           <Card className="p-6 space-y-6 border-none shadow-lg bg-white relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-blue-600" />
@@ -152,6 +166,7 @@ const Teams = () => {
                 <Input 
                   value={homeTeamName} 
                   onChange={(e) => setHomeTeamName(e.target.value)}
+                  placeholder="Enter Home Team"
                   className="text-xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent"
                 />
               </div>
@@ -170,6 +185,7 @@ const Teams = () => {
                 <Input 
                   value={awayTeamName} 
                   onChange={(e) => setAwayTeamName(e.target.value)}
+                  placeholder="Enter Away Team"
                   className="text-xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent"
                 />
               </div>

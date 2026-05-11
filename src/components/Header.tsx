@@ -4,7 +4,7 @@ import React from "react";
 import { useAuth } from "@/context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { LogOut, Shield, LayoutDashboard } from "lucide-react";
+import { LogOut, Shield, LayoutDashboard, Radio } from "lucide-react";
 
 const Header = () => {
   const { teamCode, logout } = useAuth();
@@ -32,6 +32,12 @@ const Header = () => {
                 <Button variant="ghost" size="sm" className="text-xs font-bold uppercase tracking-wider gap-2">
                   <LayoutDashboard className="w-4 h-4" />
                   Dashboard
+                </Button>
+              </Link>
+              <Link to="/broadcast-sync">
+                <Button variant="ghost" size="sm" className="text-xs font-bold uppercase tracking-wider gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50">
+                  <Radio className="w-4 h-4" />
+                  Broadcast
                 </Button>
               </Link>
             </nav>

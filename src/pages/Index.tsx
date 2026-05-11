@@ -18,11 +18,13 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal, RefreshCw } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/lib/supabase";
 import Header from "@/components/Header";
+import { useFileSystemSync } from "@/hooks/useFileSystemSync";
+import { generateDxtrXml } from "@/utils/dxtrXmlGenerator";
 
 const TEAM_STORAGE_KEY = 'football_stat_keeper_teams_v1';
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
@@ -30,6 +32,7 @@ const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 const Index = () => {
   const { teamCode, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { sync, status } = useFileSystemSync();
   const [history, setHistory] = useState<GameState[]>([]);
   const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
   const [gameState, setGameState] = useState<GameState>(() => {
@@ -82,16 +85,26 @@ const Index = () => {
 
   const clockInterval = useRef<NodeJS.Timeout | null>(null);
 
+  // Sync to Cloud and Local Storage
   useEffect(() => {
-    if (!supabase || !teamCode) return;
-    const syncToCloud = async () => {
-      if (!isAdmin) return;
-      await supabase.from('games').upsert({ id: teamCode, state: gameState, updated_at: new Date().toISOString() });
-    };
-    const timeout = setTimeout(syncToCloud, 1000);
     localStorage.setItem(`${GAME_STORAGE_KEY}_${teamCode}`, JSON.stringify(gameState));
-    return () => clearTimeout(timeout);
+    
+    if (supabase && teamCode && isAdmin) {
+      const syncToCloud = async () => {
+        await supabase.from('games').upsert({ id: teamCode, state: gameState, updated_at: new Date().toISOString() });
+      };
+      const timeout = setTimeout(syncToCloud, 1000);
+      return () => clearTimeout(timeout);
+    }
   }, [gameState, teamCode, isAdmin]);
+
+  // Sync to Local File for Broadcast
+  useEffect(() => {
+    if (status.connected) {
+      const xml = generateDxtrXml(gameState);
+      sync(xml);
+    }
+  }, [gameState, status.connected, sync]);
 
   useEffect(() => {
     if (gameState.isClockRunning && gameState.gameClock > 0) {
@@ -255,10 +268,22 @@ const Index = () => {
             <Link to="/"><Button variant="ghost" size="icon" className="rounded-full"><ArrowLeft className="w-5 h-5" /></Button></Link>
             <div>
               <h1 className="text-2xl font-black tracking-tighter text-slate-900 uppercase">Home Team Command</h1>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DakStats Workflow Active</p>
+              <div className="flex items-center gap-2">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">DakStats Workflow Active</p>
+                {status.connected && (
+                  <Badge className="h-4 bg-emerald-500/10 text-emerald-600 border-emerald-200 text-[8px] font-black uppercase px-1.5">
+                    Broadcast Live
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Link to="/broadcast-sync">
+              <Button variant="outline" size="sm" className="h-12 font-black uppercase text-[10px] gap-2 border-blue-100 text-blue-600 hover:bg-blue-50">
+                <RefreshCw className={`w-4 h-4 ${status.connected ? 'animate-spin-slow' : ''}`} /> Broadcast Sync
+              </Button>
+            </Link>
             <Dialog open={isAdjustDialogOpen} onOpenChange={setIsAdjustDialogOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" size="sm" className="h-12 font-black uppercase text-[10px] gap-2">

@@ -8,11 +8,13 @@ import { Button } from "@/components/ui/button";
 import { 
   Trophy, Users, Calendar, 
   BarChart3, PlayCircle, History, ArrowRight,
-  Activity, Target, Zap
+  Activity, Target, Zap, Radio, Share2
 } from "lucide-react";
 import Header from "@/components/Header";
+import { Badge } from "@/components/ui/badge";
 
 const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
+const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 
 const Dashboard = () => {
   const { teamCode } = useAuth();
@@ -21,14 +23,16 @@ const Dashboard = () => {
     winRate: 0,
     recentActivity: []
   });
+  const [activeGame, setActiveGame] = useState<any>(null);
 
   useEffect(() => {
     if (!teamCode) return;
 
-    const loadStats = () => {
-      const saved = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
-      if (saved) {
-        const games = JSON.parse(saved);
+    const loadData = () => {
+      // Load Season Stats
+      const savedSeason = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
+      if (savedSeason) {
+        const games = JSON.parse(savedSeason);
         const completedGames = games.filter((g: any) => g.status === 'completed');
         const wins = completedGames.filter((g: any) => g.winner === teamCode || (g.homeTeam === teamCode && g.homeScore > g.awayScore) || (g.awayTeam === teamCode && g.awayScore > g.homeScore)).length;
         
@@ -38,11 +42,21 @@ const Dashboard = () => {
           recentActivity: games.slice(0, 5)
         });
       }
+
+      // Load Active Game
+      const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
+      if (savedGame) {
+        const game = JSON.parse(savedGame);
+        // Only show as active if it has plays or score
+        if (game.playLog?.length > 0 || game.homeScore > 0 || game.awayScore > 0) {
+          setActiveGame(game);
+        }
+      }
     };
 
-    loadStats();
-    window.addEventListener('storage', loadStats);
-    return () => window.removeEventListener('storage', loadStats);
+    loadData();
+    window.addEventListener('storage', loadData);
+    return () => window.removeEventListener('storage', loadData);
   }, [teamCode]);
 
   const menuItems = [
@@ -52,8 +66,8 @@ const Dashboard = () => {
       icon: PlayCircle,
       link: "/tracker",
       color: "bg-blue-600",
-      lightColor: "bg-blue-50",
-      textColor: "text-blue-600"
+      lightColor: "bg-blue-50 dark:bg-blue-900/20",
+      textColor: "text-blue-600 dark:text-blue-400"
     },
     {
       title: "Rosters",
@@ -61,8 +75,8 @@ const Dashboard = () => {
       icon: Users,
       link: "/teams",
       color: "bg-emerald-600",
-      lightColor: "bg-emerald-50",
-      textColor: "text-emerald-600"
+      lightColor: "bg-emerald-50 dark:bg-emerald-900/20",
+      textColor: "text-emerald-600 dark:text-emerald-400"
     },
     {
       title: "Schedule",
@@ -70,8 +84,8 @@ const Dashboard = () => {
       icon: Calendar,
       link: "/games",
       color: "bg-amber-500",
-      lightColor: "bg-amber-50",
-      textColor: "text-amber-500"
+      lightColor: "bg-amber-50 dark:bg-amber-900/20",
+      textColor: "text-amber-500 dark:text-amber-400"
     },
     {
       title: "Analytics",
@@ -79,42 +93,86 @@ const Dashboard = () => {
       icon: BarChart3,
       link: "/season-stats",
       color: "bg-purple-600",
-      lightColor: "bg-purple-50",
-      textColor: "text-purple-600"
+      lightColor: "bg-purple-50 dark:bg-purple-900/20",
+      textColor: "text-purple-600 dark:text-purple-400"
     }
   ];
 
   return (
-    <div className="min-h-screen bg-slate-50/50">
+    <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950">
       <Header />
       <main className="max-w-6xl mx-auto p-6 md:p-12">
         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
-          <div>
+          <div className="animate-in fade-in slide-in-from-left-4 duration-500">
             <div className="flex items-center gap-2 mb-2">
               <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
               <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">System Online</span>
             </div>
-            <h1 className="text-5xl font-black tracking-tighter text-slate-900 uppercase">
+            <h1 className="text-5xl font-black tracking-tighter text-slate-900 dark:text-white uppercase">
               {teamCode}
             </h1>
             <p className="text-slate-500 font-medium mt-2">Team Management & Performance Analytics</p>
           </div>
-          <Link to="/tracker">
-            <Button className="h-14 px-8 bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-slate-200 transition-all active:scale-95">
-              <PlayCircle className="w-5 h-5" />
-              Start Live Session
-            </Button>
-          </Link>
+          <div className="flex gap-3">
+            <Link to="/tracker">
+              <Button className="h-14 px-8 bg-slate-900 dark:bg-white dark:text-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-widest gap-3 shadow-xl shadow-slate-200 dark:shadow-none transition-all active:scale-95">
+                <PlayCircle className="w-5 h-5" />
+                Start Live Session
+              </Button>
+            </Link>
+          </div>
         </div>
 
+        {activeGame && (
+          <Card className="mb-12 p-8 bg-slate-900 text-white border-none shadow-2xl relative overflow-hidden animate-in zoom-in-95 duration-500">
+            <div className="absolute top-0 right-0 p-8 opacity-10">
+              <Radio className="w-32 h-32 animate-pulse" />
+            </div>
+            <div className="relative z-10 flex flex-col md:flex-row items-center justify-between gap-8">
+              <div className="space-y-4 text-center md:text-left">
+                <Badge className="bg-red-500 hover:bg-red-600 text-white border-none gap-2 px-3 py-1">
+                  <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse" />
+                  LIVE GAME IN PROGRESS
+                </Badge>
+                <div className="flex items-center gap-6">
+                  <div className="text-center">
+                    <div className="text-[10px] font-black text-slate-500 uppercase mb-1">{activeGame.homeTeam}</div>
+                    <div className="text-4xl font-black">{activeGame.homeScore}</div>
+                  </div>
+                  <div className="text-2xl font-light text-slate-700 italic">VS</div>
+                  <div className="text-center">
+                    <div className="text-[10px] font-black text-slate-500 uppercase mb-1">{activeGame.awayTeam}</div>
+                    <div className="text-4xl font-black">{activeGame.awayScore}</div>
+                  </div>
+                </div>
+                <div className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+                  Quarter {activeGame.quarter} • {activeGame.down}{activeGame.down === 1 ? 'st' : activeGame.down === 2 ? 'nd' : activeGame.down === 3 ? 'rd' : 'th'} & {activeGame.distance === 0 ? 'Goal' : activeGame.distance}
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Link to="/tracker">
+                  <Button className="bg-blue-600 hover:bg-blue-500 text-white font-black uppercase tracking-widest px-8 h-12">
+                    Resume Tracking
+                  </Button>
+                </Link>
+                <Link to={`/live/${teamCode}`}>
+                  <Button variant="outline" className="border-white/10 bg-white/5 hover:bg-white/10 text-white font-black uppercase tracking-widest h-12">
+                    View Live Feed
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </Card>
+        )}
+
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-          {menuItems.map((item) => (
+          {menuItems.map((item, idx) => (
             <Link key={item.title} to={item.link} className="group">
-              <Card className="p-6 h-full hover:shadow-2xl hover:-translate-y-1 transition-all border-none bg-white relative overflow-hidden">
+              <Card className={`p-6 h-full hover:shadow-2xl hover:-translate-y-1 transition-all border-none bg-white dark:bg-slate-900 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[${idx * 100}ms]`}>
                 <div className={`w-12 h-12 rounded-xl ${item.lightColor} ${item.textColor} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                   <item.icon className="w-6 h-6" />
                 </div>
-                <h3 className="text-lg font-black uppercase tracking-tight text-slate-900 mb-1">{item.title}</h3>
+                <h3 className="text-lg font-black uppercase tracking-tight text-slate-900 dark:text-white mb-1">{item.title}</h3>
                 <p className="text-slate-500 text-xs font-medium leading-relaxed mb-4">{item.desc}</p>
                 <div className={`flex items-center gap-1 text-[10px] font-black uppercase tracking-widest ${item.textColor}`}>
                   Open Module <ArrowRight className="w-3 h-3 group-hover:translate-x-1 transition-transform" />
@@ -125,36 +183,36 @@ const Dashboard = () => {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <Card className="lg:col-span-2 p-8 bg-white border-none shadow-sm">
+          <Card className="lg:col-span-2 p-8 bg-white dark:bg-slate-900 border-none shadow-sm">
             <div className="flex items-center justify-between mb-8">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center text-slate-600">
+                <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 rounded-lg flex items-center justify-center text-slate-600 dark:text-slate-400">
                   <History className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900">Recent Activity</h3>
+                  <h3 className="text-sm font-black uppercase tracking-widest text-slate-900 dark:text-white">Recent Activity</h3>
                   <p className="text-[10px] text-slate-400 font-bold uppercase">Last 24 Hours</p>
                 </div>
               </div>
               <Link to="/games">
-                <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900">View History</Button>
+                <Button variant="ghost" size="sm" className="text-[10px] font-black uppercase tracking-widest text-slate-400 hover:text-slate-900 dark:hover:text-white">View History</Button>
               </Link>
             </div>
             
             <div className="space-y-4">
               {stats.recentActivity.length > 0 ? (
                 stats.recentActivity.map((game: any, i) => (
-                  <div key={i} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100">
+                  <div key={i} className="flex items-center justify-between p-4 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-white/5">
                     <div className="flex items-center gap-4">
                       <div className="text-[10px] font-black text-slate-400 uppercase">{game.date || 'Live'}</div>
-                      <div className="font-bold text-sm">{game.homeTeam} vs {game.awayTeam}</div>
+                      <div className="font-bold text-sm dark:text-slate-200">{game.homeTeam} vs {game.awayTeam}</div>
                     </div>
-                    <div className="font-black text-slate-900">{game.homeScore} - {game.awayScore}</div>
+                    <div className="font-black text-slate-900 dark:text-white">{game.homeScore} - {game.awayScore}</div>
                   </div>
                 ))
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
-                  <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center text-slate-200 mb-4">
+                  <div className="w-16 h-16 bg-slate-50 dark:bg-slate-800 rounded-full flex items-center justify-center text-slate-200 dark:text-slate-700 mb-4">
                     <Activity className="w-8 h-8" />
                   </div>
                   <p className="text-slate-400 text-sm font-medium italic">No recent activity recorded.</p>
@@ -189,7 +247,7 @@ const Dashboard = () => {
                     <div className="h-1.5 w-full bg-white/5 rounded-full overflow-hidden">
                       <div 
                         className="h-full bg-blue-500 rounded-full transition-all duration-1000" 
-                        style={{ width: `${(stats.gamesPlayed / 12) * 100}%` }}
+                        style={{ width: `${Math.min(100, (stats.gamesPlayed / 12) * 100)}%` }}
                       />
                     </div>
                   </div>
@@ -197,16 +255,16 @@ const Dashboard = () => {
               </div>
             </Card>
 
-            <Card className="p-6 bg-white border-none shadow-sm">
+            <Card className="p-6 bg-white dark:bg-slate-900 border-none shadow-sm">
               <h3 className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-4">Quick Actions</h3>
               <div className="grid grid-cols-2 gap-3">
                 <Link to="/teams">
-                  <Button variant="outline" className="w-full h-12 text-[10px] font-black uppercase tracking-widest border-slate-100 hover:bg-slate-50">
+                  <Button variant="outline" className="w-full h-12 text-[10px] font-black uppercase tracking-widest border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-800">
                     <Users className="w-3 h-3 mr-2" /> Roster
                   </Button>
                 </Link>
                 <Link to="/games">
-                  <Button variant="outline" className="w-full h-12 text-[10px] font-black uppercase tracking-widest border-slate-100 hover:bg-slate-50">
+                  <Button variant="outline" className="w-full h-12 text-[10px] font-black uppercase tracking-widest border-slate-100 dark:border-white/5 hover:bg-slate-50 dark:hover:bg-slate-800">
                     <Calendar className="w-3 h-3 mr-2" /> Schedule
                   </Button>
                 </Link>

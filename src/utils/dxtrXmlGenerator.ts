@@ -1,6 +1,6 @@
 "use client";
 
-import { GameState } from "@/types/football";
+import { GameState, Player, PlayerStats } from "@/types/football";
 
 /**
  * Generates a Stat Crew compatible XML string for Daktronics DXTR.
@@ -12,6 +12,7 @@ export const generateDxtrXml = (game: GameState): string => {
   
   // Helper to escape XML special characters
   const escapeXml = (unsafe: string) => {
+    if (!unsafe) return "";
     return unsafe.replace(/[<>&"']/g, (c) => {
       switch (c) {
         case '<': return '<';
@@ -24,6 +25,23 @@ export const generateDxtrXml = (game: GameState): string => {
     });
   };
 
+  const renderPlayerStats = (player: Player, stats?: PlayerStats) => {
+    if (!stats) return "";
+    
+    // Only include players who have actually participated (GP=1)
+    const hasStats = Object.values(stats).some(val => val > 0);
+    if (!hasStats) return "";
+
+    return `
+    <player name="${escapeXml(player.name)}" number="${player.number}" pos="${escapeXml(player.position)}" gp="1">
+      <passing att="${stats.passAtt}" comp="${stats.passComp}" yds="${stats.passYds}" td="${stats.passTDs}" int="${stats.ints}" />
+      <rushing att="${stats.rushAtt}" yds="${stats.rushYds}" td="${stats.rushTDs}" />
+      <receiving rec="${stats.receptions}" yds="${stats.recYds}" td="${stats.recTDs}" />
+      <defense tackles="${stats.tackles}" sacks="${stats.sacks}" int="${stats.defInts}" ff="${stats.forcedFumbles}" />
+      <special fgatt="${stats.fgAtt}" fgmade="${stats.fgMade}" punts="${stats.punts}" punt_yds="${stats.puntYds}" />
+    </player>`;
+  };
+
   const homeName = escapeXml(game.homeTeam);
   const awayName = escapeXml(game.awayTeam);
   
@@ -31,9 +49,16 @@ export const generateDxtrXml = (game: GameState): string => {
   const posId = game.possession === "Home" ? "HOME" : "AWAY";
   
   // Calculate yardline in Stat Crew format (0-50)
-  // Our system uses 0-100. 0-50 is Home side, 51-100 is Away side.
   const side = game.yardLine <= 50 ? "HOME" : "AWAY";
   const yard = game.yardLine <= 50 ? game.yardLine : 100 - game.yardLine;
+
+  const homePlayersXml = game.roster.home
+    .map(p => renderPlayerStats(p, game.stats[p.id]))
+    .join("");
+
+  const awayPlayersXml = game.roster.away
+    .map(p => renderPlayerStats(p, game.stats[p.id]))
+    .join("");
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <fbgame version="1.0" generated="${timestamp}">
@@ -48,10 +73,12 @@ export const generateDxtrXml = (game: GameState): string => {
   
   <team id="HOME" name="${homeName}" score="${game.homeScore}" timeouts="${game.homeTimeouts}">
     <linescore score="${game.homeScore}" />
+    ${homePlayersXml}
   </team>
   
   <team id="AWAY" name="${awayName}" score="${game.awayScore}" timeouts="${game.awayTimeouts}">
     <linescore score="${game.awayScore}" />
+    ${awayPlayersXml}
   </team>
   
   <status quarter="${game.quarter}" 

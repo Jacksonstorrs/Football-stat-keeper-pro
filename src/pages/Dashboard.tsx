@@ -25,6 +25,9 @@ const Dashboard = () => {
   const [activeGame, setActiveGame] = useState<any>(null);
   const [copied, setCopied] = useState(false);
   const [liveScore, setLiveScore] = useState({ homeScore: 0, awayScore: 0 });
+  const [teamStandings, setTeamStandings] = useState<Record<string, any>>({});
+  const [filterTeam, setFilterTeam] = useState<string>("all");
+  const [sortedPlayers, setSortedPlayers] = useState<any[]>([]);
 
   useEffect(() => {
     if (!teamCode) return;
@@ -45,6 +48,39 @@ const Dashboard = () => {
           winRate: completedGames.length > 0 ? Math.round((wins / completedGames.length) * 100) : 0,
           recentActivity: games.slice(0, 5)
         });
+
+        // Initialize team standings
+        const standings: Record<string, any> = {};
+        games.forEach((game: any) => {
+          if (game.status === 'completed') {
+            const homeTeam = game.homeTeam || "Unknown Home";
+            const awayTeam = game.awayTeam || "Unknown Away";
+            
+            if (!standings[homeTeam]) {
+              standings[homeTeam] = { name: homeTeam, wins: 0, losses: 0, ties: 0, pf: 0, pa: 0 };
+            }
+            if (!standings[awayTeam]) {
+              standings[awayTeam] = { name: awayTeam, wins: 0, losses: 0, ties: 0, pf: 0, pa: 0 };
+            }
+            
+            if (game.homeScore > game.awayScore) {
+              standings[homeTeam].wins += 1;
+              standings[awayTeam].losses += 1;
+            } else if (game.awayScore > game.homeScore) {
+              standings[awayTeam].wins += 1;
+              standings[homeTeam].losses += 1;
+            } else {
+              standings[homeTeam].ties += 1;
+              standings[awayTeam].ties += 1;
+            }
+            
+            standings[homeTeam].pf += game.homeScore;
+            standings[homeTeam].pa += game.awayScore;
+            standings[awayTeam].pf += game.awayScore;
+            standings[awayTeam].pa += game.homeScore;
+          }
+        });
+        setTeamStandings(standings);
       }
 
       const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
@@ -211,7 +247,7 @@ const Dashboard = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {Object.values(teamStandings).sort((a, b) => b.wins - a.wins).map((team) => (
+                  {Object.values(teamStandings).sort((a, b) => b.wins - a.wins).map((team: any) => (
                     <TableRow key={team.name} className="dark:border-white/5">
                       <TableCell className="font-bold text-xs uppercase dark:text-slate-200">{team.name}</TableCell>
                       <TableCell className="text-center font-mono text-xs dark:text-slate-400">{team.wins}-{team.losses}-{team.ties}</TableCell>
@@ -232,7 +268,7 @@ const Dashboard = () => {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Teams</SelectItem>
-                  {teams.map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  {Object.keys(teamStandings).map(t => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
@@ -248,7 +284,7 @@ const Dashboard = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {sortedPlayers.map((player) => (
+                  {sortedPlayers.map((player: any) => (
                     <TableRow key={player.id} className="dark:border-white/5">
                       <TableCell className="py-4">
                         <div className="flex flex-col">

@@ -89,7 +89,7 @@ const Teams = () => {
                   type="number"
                   value={player.number || ""} 
                   onChange={(e) => updatePlayer(team, player.id, 'number', parseInt(e.target.value) || 0)}
-                  className="h-8 font-bold bg-slate-900 text-white"
+                  className="h-8 font-bold bg-slate-100 text-black"
                   placeholder="00"
                 />
               </div>
@@ -99,7 +99,7 @@ const Teams = () => {
                   type="text"
                   value={player.name} 
                   onChange={(e) => updatePlayer(team, player.id, 'name', e.target.value)}
-                  className="h-8 bg-slate-900 text-white focus-visible:ring-2 focus-visible:ring-blue-500"
+                  className="h-8 bg-slate-100 text-black"
                   placeholder="Player Name"
                 />
               </div>
@@ -109,7 +109,7 @@ const Teams = () => {
                   type="text"
                   value={player.position} 
                   onChange={(e) => updatePlayer(team, player.id, 'position', e.target.value)}
-                  className="h-8 uppercase bg-slate-900 text-white focus-visible:ring-2 focus-visible:ring-blue-500"
+                  className="h-8 uppercase bg-slate-100 text-black"
                   placeholder="QB"
                 />
               </div>
@@ -152,7 +152,7 @@ const Teams = () => {
         {(!homeTeamName || !awayTeamName) && (
           <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-center gap-3 text-amber-800">
             <AlertCircle className="w-5 h-5 text-amber-500" />
-            <p className="text-sm font-medium">Please enter team names to begin tracking stats.</p>
+            <p className="text-sm font-medium">Please enter both team names to begin tracking stats.</p>
           </div>
         )}
 

@@ -118,13 +118,13 @@ const Index = () => {
     return () => { if (clockInterval.current) clearInterval(clockInterval.current); };
   }, [gameState.isClockRunning, gameState.gameClock]);
 
-  const handleAction = (type: PlayType, yards: number, player?: Player, receiver?: Player) => {
+  const handleAction = (type: PlayType, yards: number, player?: Player, receiver?: Player, yardLine?: number) => {
     if (!isAdmin) return showError("Admin access required");
     setHistory(prev => [gameState, ...prev].slice(0, 10));
 
     setGameState(prev => {
       const newState = { ...prev };
-      const currentYardLine = prev.yardLine;
+      const currentYardLine = yardLine || prev.yardLine;
       let result = "";
       let newYardLine = currentYardLine;
       let isFirstDown = false;

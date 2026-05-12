@@ -5,12 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle, Flag, RefreshCw, Trash2 } from "lucide-react";
+import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle, Flag, RefreshCcw, Trash2, MapPin } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
   homeRoster: Player[];
-  onAction: (type: PlayType, yards: number, player?: Player, receiver?: Player) => void;
+  onAction: (type: PlayType, yards: number, player?: Player, receiver?: Player, yardLine?: number) => void;
   onUndo: () => void;
   onSwitchPossession: () => void;
   canUndo: boolean;
@@ -23,12 +23,13 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedReceiver, setSelectedReceiver] = useState<Player | null>(null);
   const [pendingAction, setPendingAction] = useState<PlayType | null>(null);
-  const [step, setStep] = useState<"player" | "tdType" | "passer" | "receiver" | "yards" | "penalty">("player");
+  const [step, setStep] = useState<"player" | "tdType" | "passer" | "receiver" | "yards" | "penalty" | "yardLine">("player");
   const [yardage, setYardage] = useState("");
+  const [yardLine, setYardLine] = useState("");
 
   const handleActionClick = (type: PlayType) => {
     if (type === "Incomplete" || type === "Turnover") {
-      onAction(type, 0, selectedPlayer || undefined);
+      onAction(type, 0, selectedPlayer || undefined, undefined, undefined);
       reset();
     } else if (type === "Touchdown") {
       setPendingAction(type);
@@ -39,6 +40,10 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
     } else if (type === "Penalty") {
       setPendingAction(type);
       setStep("penalty");
+    } else if (!isHomeOffense && ["Tackle", "Sack", "Interception"].includes(type)) {
+      // For defensive plays, ask for yard line
+      setPendingAction(type);
+      setStep("yardLine");
     } else {
       setPendingAction(type);
       setStep("yards");
@@ -65,8 +70,9 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
 
   const handleConfirmYardage = () => {
     const yards = parseInt(yardage) || 0;
+    const yLine = parseInt(yardLine) || 0;
     if (pendingAction) {
-      onAction(pendingAction, yards, selectedPlayer || undefined, selectedReceiver || undefined);
+      onAction(pendingAction, yards, selectedPlayer || undefined, selectedReceiver || undefined, step === "yardLine" ? yLine : undefined);
       reset();
     }
   };
@@ -77,6 +83,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
     setPendingAction(null);
     setStep("player");
     setYardage("");
+    setYardLine("");
   };
 
   if (step === "tdType") {
@@ -166,6 +173,36 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
     );
   }
 
+  if (step === "yardLine") {
+    return (
+      <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-blue-500" />
+            <h3 className="text-sm font-black uppercase tracking-widest text-blue-600">Yard Line</h3>
+          </div>
+          <Button variant="ghost" size="sm" onClick={() => setStep("player")} className="text-[10px] font-black uppercase tracking-widest">
+            <ArrowLeft className="w-3 h-3 mr-1" /> Back
+          </Button>
+        </div>
+        
+        <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl text-center">
+          <p className="text-[10px] font-black text-blue-700 uppercase tracking-widest mb-1">Where did the play occur?</p>
+          <p className="text-xs text-blue-600 font-medium">Enter the yard line where the defensive play happened.</p>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+          {[25, 50, 75].map(y => (
+            <Button key={y} variant="outline" className="h-16 font-black text-lg border-blue-200 hover:bg-blue-50 text-blue-700" onClick={() => { setYardLine(y.toString()); setStep("yards"); }}>
+              {y} YD
+            </Button>
+          ))}
+        </div>
+        <Button variant="secondary" className="w-full h-12 font-black uppercase text-[10px] bg-slate-100" onClick={() => setStep("yards")}>Custom Yard Line</Button>
+      </div>
+    );
+  }
+
   if (step === "yards") {
     return <YardageInput value={yardage} onChange={setYardage} onConfirm={handleConfirmYardage} onCancel={() => setStep("player")} />;
   }
@@ -187,7 +224,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
             className="h-8 w-8 text-slate-400 hover:text-blue-600"
             title="Switch Possession"
           >
-            <RefreshCw className="w-4 h-4" />
+            <RefreshCcw className="w-4 h-4" />
           </Button>
           <Button 
             variant="ghost" 

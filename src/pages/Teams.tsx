@@ -89,7 +89,7 @@ const Teams = () => {
                   type="number" 
                   value={player.number || ""} 
                   onChange={(e) => updatePlayer(team, player.id, 'number', parseInt(e.target.value) || 0)}
-                  className="h-8 font-bold text-black"
+                  className="h-8 font-bold bg-slate-900 text-white border-none"
                   placeholder="00"
                 />
               </div>
@@ -98,7 +98,7 @@ const Teams = () => {
                 <Input 
                   value={player.name} 
                   onChange={(e) => updatePlayer(team, player.id, 'name', e.target.value)}
-                  className="h-8 text-black"
+                  className="h-8 bg-slate-900 text-white border-none"
                   placeholder="Player Name"
                 />
               </div>
@@ -107,7 +107,7 @@ const Teams = () => {
                 <Input 
                   value={player.position} 
                   onChange={(e) => updatePlayer(team, player.id, 'position', e.target.value)}
-                  className="h-8 uppercase text-black"
+                  className="h-8 uppercase bg-slate-900 text-white border-none"
                   placeholder="QB"
                 />
               </div>

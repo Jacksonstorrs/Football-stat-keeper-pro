@@ -89,7 +89,7 @@ const Teams = () => {
                   type="number" 
                   value={player.number || ""} 
                   onChange={(e) => updatePlayer(team, player.id, 'number', parseInt(e.target.value) || 0)}
-                  className="h-8 font-bold"
+                  className="h-8 font-bold text-black"
                   placeholder="00"
                 />
               </div>
@@ -98,7 +98,7 @@ const Teams = () => {
                 <Input 
                   value={player.name} 
                   onChange={(e) => updatePlayer(team, player.id, 'name', e.target.value)}
-                  className="h-8"
+                  className="h-8 text-black"
                   placeholder="Player Name"
                 />
               </div>
@@ -107,7 +107,7 @@ const Teams = () => {
                 <Input 
                   value={player.position} 
                   onChange={(e) => updatePlayer(team, player.id, 'position', e.target.value)}
-                  className="h-8 uppercase"
+                  className="h-8 uppercase text-black"
                   placeholder="QB"
                 />
               </div>
@@ -167,7 +167,7 @@ const Teams = () => {
                   value={homeTeamName} 
                   onChange={(e) => setHomeTeamName(e.target.value)}
                   placeholder="Enter Home Team"
-                  className="text-xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent"
+                  className="text-xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-black"
                 />
               </div>
             </div>
@@ -186,7 +186,7 @@ const Teams = () => {
                   value={awayTeamName} 
                   onChange={(e) => setAwayTeamName(e.target.value)}
                   placeholder="Enter Away Team"
-                  className="text-xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent"
+                  className="text-xl font-bold border-none p-0 h-auto focus-visible:ring-0 bg-transparent text-black"
                 />
               </div>
             </div>

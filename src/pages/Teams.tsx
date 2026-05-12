@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Player } from "@/types/football";
 import { UserPlus, Trash2, Save, ArrowLeft, Shield, Users, Trophy, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { showSuccess } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
 import Header from "@/components/Header";

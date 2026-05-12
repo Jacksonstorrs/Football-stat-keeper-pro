@@ -4,7 +4,7 @@ export interface Player {
   id: string;
   name: string;
   number: number;
-  position: string;
+  position: string; // QB, RB, WR, TE, FB, OL, DL, LB, CB, S, K, P
 }
 
 export interface PlayerStats {

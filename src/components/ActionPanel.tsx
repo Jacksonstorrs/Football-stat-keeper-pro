@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Player, PlayType } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle, Flag, RefreshCw } from "lucide-react";
+import { Hash, RotateCcw, Zap, Shield, Target, UserCheck, ChevronRight, ArrowLeft, Footprints, Trophy, AlertCircle, Flag, RefreshCw, Trash2 } from "lucide-react";
 import YardageInput from "./YardageInput";
 
 interface ActionPanelProps {
@@ -23,7 +23,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
   const [selectedPlayer, setSelectedPlayer] = useState<Player | null>(null);
   const [selectedReceiver, setSelectedReceiver] = useState<Player | null>(null);
   const [pendingAction, setPendingAction] = useState<PlayType | null>(null);
-  const [step, setStep] = useState<"player" | "tdType" | "receiver" | "yards" | "penalty">("player");
+  const [step, setStep] = useState<"player" | "tdType" | "passer" | "receiver" | "yards" | "penalty">("player");
   const [yardage, setYardage] = useState("");
 
   const handleActionClick = (type: PlayType) => {
@@ -35,7 +35,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
       setStep("tdType");
     } else if (type === "Pass") {
       setPendingAction(type);
-      setStep("receiver");
+      setStep("passer");
     } else if (type === "Penalty") {
       setPendingAction(type);
       setStep("penalty");
@@ -47,10 +47,15 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
 
   const handleTDTypeSelect = (type: "Rush" | "Pass") => {
     if (type === "Pass") {
-      setStep("receiver");
+      setStep("passer");
     } else {
       setStep("yards");
     }
+  };
+
+  const handlePasserSelect = (player: Player) => {
+    setSelectedPlayer(player);
+    setStep("receiver");
   };
 
   const handleReceiverSelect = (player: Player) => {
@@ -91,17 +96,37 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
     );
   }
 
-  if (step === "receiver") {
+  if (step === "passer") {
     return (
       <div className="space-y-6 animate-in fade-in zoom-in duration-300">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-black uppercase tracking-widest text-blue-600">Select Receiver</h3>
+          <h3 className="text-sm font-black uppercase tracking-widest text-blue-600">Select Passer</h3>
           <Button variant="ghost" size="sm" onClick={() => setStep("player")} className="text-[10px] font-black uppercase tracking-widest">
             <ArrowLeft className="w-3 h-3 mr-1" /> Back
           </Button>
         </div>
         <ScrollArea className="h-64 bg-slate-50 rounded-xl p-2">
-          {homeRoster.map(p => (
+          {homeRoster.filter(p => p.position === 'QB').map(p => (
+            <Button key={p.id} variant="ghost" className="w-full justify-start h-12 font-bold" onClick={() => handlePasserSelect(p)}>
+              <span className="w-8 text-slate-400">#{p.number}</span> {p.name}
+            </Button>
+          ))}
+        </ScrollArea>
+      </div>
+    );
+  }
+
+  if (step === "receiver") {
+    return (
+      <div className="space-y-6 animate-in fade-in zoom-in duration-300">
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-black uppercase tracking-widest text-blue-600">Select Receiver</h3>
+          <Button variant="ghost" size="sm" onClick={() => setStep("passer")} className="text-[10px] font-black uppercase tracking-widest">
+            <ArrowLeft className="w-3 h-3 mr-1" /> Back
+          </Button>
+        </div>
+        <ScrollArea className="h-64 bg-slate-50 rounded-xl p-2">
+          {homeRoster.filter(p => ['WR', 'RB', 'TE', 'FB'].includes(p.position)).map(p => (
             <Button key={p.id} variant="ghost" className="w-full justify-start h-12 font-bold" onClick={() => handleReceiverSelect(p)}>
               <span className="w-8 text-slate-400">#{p.number}</span> {p.name}
             </Button>
@@ -199,6 +224,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
               >
                 <span className="w-8 text-left font-mono opacity-50">#{player.number}</span>
                 <span className="truncate">{player.name}</span>
+                <span className="ml-auto text-xs font-bold text-slate-400 uppercase">{player.position}</span>
               </Button>
             ))}
           </div>

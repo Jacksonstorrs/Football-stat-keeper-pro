@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Player } from "@/types/football";
-import { UserPlus, Trash2, Save, ArrowLeft, Shield, Users, Trophy, AlertCircle } from "lucide-react";
+import { UserPlus, Trash2, Save, ArrowLeft, Shield, Users, AlertCircle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { showSuccess } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
@@ -86,7 +86,7 @@ const Teams = () => {
               <div className="w-16">
                 <Label className="text-[10px] uppercase text-slate-400">No.</Label>
                 <Input 
-                  type="number" 
+                  type="number"
                   value={player.number || ""} 
                   onChange={(e) => updatePlayer(team, player.id, 'number', parseInt(e.target.value) || 0)}
                   className="h-8 font-bold bg-slate-900 text-white border-none"
@@ -96,15 +96,17 @@ const Teams = () => {
               <div className="flex-1">
                 <Label className="text-[10px] uppercase text-slate-400">Name</Label>
                 <Input 
+                  type="text"
                   value={player.name} 
                   onChange={(e) => updatePlayer(team, player.id, 'name', e.target.value)}
-                  className="h-8 bg-slate-900 text-white border-none"
+                  className="h-8 bg-slate-900 text-white border-none cursor-text"
                   placeholder="Player Name"
                 />
               </div>
               <div className="w-20">
                 <Label className="text-[10px] uppercase text-slate-400">Pos</Label>
                 <Input 
+                  type="text"
                   value={player.position} 
                   onChange={(e) => updatePlayer(team, player.id, 'position', e.target.value)}
                   className="h-8 uppercase bg-slate-900 text-white border-none"

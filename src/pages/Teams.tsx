@@ -89,7 +89,7 @@ const Teams = () => {
                   type="number"
                   value={player.number || ""} 
                   onChange={(e) => updatePlayer(team, player.id, 'number', parseInt(e.target.value) || 0)}
-                  className="h-8 font-bold bg-slate-900 text-white border-none"
+                  className="h-8 font-bold bg-slate-900 text-white"
                   placeholder="00"
                 />
               </div>
@@ -99,7 +99,7 @@ const Teams = () => {
                   type="text"
                   value={player.name} 
                   onChange={(e) => updatePlayer(team, player.id, 'name', e.target.value)}
-                  className="h-8 bg-slate-900 text-white border-none cursor-text"
+                  className="h-8 bg-slate-900 text-white focus-visible:ring-2 focus-visible:ring-blue-500"
                   placeholder="Player Name"
                 />
               </div>
@@ -109,7 +109,7 @@ const Teams = () => {
                   type="text"
                   value={player.position} 
                   onChange={(e) => updatePlayer(team, player.id, 'position', e.target.value)}
-                  className="h-8 uppercase bg-slate-900 text-white border-none"
+                  className="h-8 uppercase bg-slate-900 text-white focus-visible:ring-2 focus-visible:ring-blue-500"
                   placeholder="QB"
                 />
               </div>

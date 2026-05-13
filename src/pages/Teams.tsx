@@ -31,8 +31,7 @@ const Teams = () => {
 
   // -------------------------------------------------------------------------
   // Load saved data
-  // -------------------------------------------------------------------------
-  useEffect(() => {
+  // -------------------------------------------------------------------------  useEffect(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
     if (saved) {
       const d = JSON.parse(saved);
@@ -43,98 +42,8 @@ const Teams = () => {
     }
   }, [teamCode]);
 
-  // -------------------------------------------------------------------------
-  // Save handler
-  // -------------------------------------------------------------------------
-  const saveTeams = () => {
-    if (!homeTeamName || !awayTeamName) {
-      showSuccess("Please enter both team names before saving.");
-      return;
-    }
-    const data = { homeTeamName, awayTeamName, homeRoster, awayRoster };
-    localStorage.setItem(`${STORAGE_KEY}_${teamCode}`, JSON.stringify(data));
-    showSuccess("Team data saved successfully");
-  };
-
-  // -------------------------------------------------------------------------
-  // Roster helpers
-  // -------------------------------------------------------------------------
-  const addPlayer = (team: "home" | "away") => {
-    const newPlayer: Player = {
-      id: Math.random().toString(36).substr(2, 9),
-      name: "",
-      number: 0,
-      position: "",
-    };
-    if (team === "home") setHomeRoster([...homeRoster, newPlayer]);
-    else setAwayRoster([...awayRoster, newPlayer]);
-  };
-
-  const updatePlayer = (
-    team: "home" | "away",
-    id: string,
-    field: keyof Player,
-    value: string | number
-  ) => {
-    const updater = (list: Player[]) =>
-      list.map((p) => (p.id === id ? { ...p, [field]: value } : p));
-    if (team === "home") setHomeRoster(updater(homeRoster));
-    else setAwayRoster(updater(awayRoster));
-  };
-
-  const removePlayer = (team: "home" | "away", id: string) => {
-    if (team === "home") setHomeRoster(homeRoster.filter((p) => p.id !== id));
-    else setAwayRoster(awayRoster.filter((p) =>
-<dyad-write path="src/pages/Teams.tsx" description="Use uncontrolled inputs and update on blur to keep focus while typing">
-"use client";
-
-import React, { useState, useEffect } from "react";
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Player } from "@/types/football";
-import {
-  UserPlus,
-  Trash2,
-  Save,
-  ArrowLeft,
-  Shield,
-  Users,
-  AlertCircle,
-} from "lucide-react";
-import { Link } from "react-router-dom";
-import { showSuccess } from "@/utils/toast";
-import { useAuth } from "@/context/AuthContext";
-import Header from "@/components/Header";
-
-const STORAGE_KEY = "football_stat_keeper_teams_v1";
-
-const Teams = () => {
-  const { teamCode } = useAuth();
-  const [homeTeamName, setHomeTeamName] = useState("");
-  const [awayTeamName, setAwayTeamName] = useState("");
-  const [homeRoster, setHomeRoster] = useState<Player[]>([]);
-  const [awayRoster, setAwayRoster] = useState<Player[]>([]);
-
-  // -------------------------------------------------------------------------
-  // Load saved data
-  // -------------------------------------------------------------------------
-  useEffect(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
-    if (saved) {
-      const d = JSON.parse(saved);
-      setHomeTeamName(d.homeTeamName || "");
-      setAwayTeamName(d.awayTeamName || "");
-      setHomeRoster(d.homeRoster || []);
-      setAwayRoster(d.awayRoster || []);
-    }
-  }, [teamCode]);
-
-  // -------------------------------------------------------------------------
-  // Save handler
-  // -------------------------------------------------------------------------
-  const saveTeams = () => {
+  // -------------------------------------------------------------------------  // Save handler
+  // -------------------------------------------------------------------------  const saveTeams = () => {
     if (!homeTeamName || !awayTeamName) {
       showSuccess("Please enter both team names before saving.");
       return;

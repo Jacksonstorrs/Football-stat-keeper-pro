@@ -30,7 +30,7 @@ const TEAM_STORAGE_KEY = 'football_stat_keeper_teams_v1';
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 
 const Index = () => {
-  const { teamCode, isAdmin } = useAuth();
+  const { teamCode } = useAuth();
   const { connected } = useBroadcast();
   const navigate = useNavigate();
   const [history, setHistory] = useState<GameState[]>([]);
@@ -94,14 +94,14 @@ const Index = () => {
   useEffect(() => {
     localStorage.setItem(`${GAME_STORAGE_KEY}_${teamCode}`, JSON.stringify(gameState));
     
-    if (supabase && teamCode && isAdmin) {
+    if (supabase && teamCode) {
       const syncToCloud = async () => {
         await supabase.from('games').upsert({ id: teamCode, state: gameState, updated_at: new Date().toISOString() });
       };
       const timeout = setTimeout(syncToCloud, 1000);
       return () => clearTimeout(timeout);
     }
-  }, [gameState, teamCode, isAdmin]);
+  }, [gameState, teamCode]);
 
   useEffect(() => {
     if (gameState.isClockRunning && gameState.gameClock > 0) {
@@ -119,7 +119,6 @@ const Index = () => {
   }, [gameState.isClockRunning, gameState.gameClock]);
 
   const handleAction = (type: PlayType, yards: number, player?: Player, receiver?: Player, yardLine?: number) => {
-    if (!isAdmin) return showError("Admin access required");
     setHistory(prev => [gameState, ...prev].slice(0, 10));
 
     setGameState(prev => {
@@ -367,7 +366,7 @@ const Index = () => {
                 <DialogFooter><Button onClick={handleManualAdjust} className="w-full bg-slate-900">Apply Changes</Button></DialogFooter>
               </DialogContent>
             </Dialog>
-            <GameClock seconds={gameState.gameClock} isRunning={gameState.isClockRunning} onToggle={() => isAdmin && setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))} onReset={() => isAdmin && setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))} onNextQuarter={() => isAdmin && setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1) }))} quarter={gameState.quarter} />
+            <GameClock seconds={gameState.gameClock} isRunning={gameState.isClockRunning} onToggle={() => setGameState(prev => ({ ...prev, isClockRunning: !prev.isClockRunning }))} onReset={() => setGameState(prev => ({ ...prev, gameClock: 900, isClockRunning: false }))} onNextQuarter={() => setGameState(prev => ({ ...prev, quarter: Math.min(4, prev.quarter + 1) }))} quarter={gameState.quarter} />
           </div>
         </div>
 
@@ -379,7 +378,7 @@ const Index = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <Card className="md:col-span-2 p-8 bg-white border-none shadow-sm">
-                <FootballField ballPosition={gameState.yardLine} possession={gameState.possession} onSpotBall={(y) => isAdmin && setGameState(prev => ({ ...prev, yardLine: y }))} />
+                <FootballField ballPosition={gameState.yardLine} possession={gameState.possession} onSpotBall={(y) => setGameState(prev => ({ ...prev, yardLine: y }))} />
               </Card>
               <div className="space-y-6">
                 <WinProbability homeProb={50 + (gameState.homeScore - gameState.awayScore) * 2} homeTeam={gameState.homeTeam} awayTeam={gameState.awayTeam} />
@@ -390,18 +389,14 @@ const Index = () => {
           </div>
           <div className="lg:col-span-4 space-y-8">
             <Card className="p-8 bg-white border-none shadow-sm">
-              {isAdmin ? (
-                <ActionPanel 
-                  homeRoster={gameState.roster.home}
-                  onAction={handleAction}
-                  onUndo={handleUndo}
-                  onSwitchPossession={handleSwitchPossession}
-                  canUndo={history.length > 0}
-                  isHomeOffense={gameState.possession === "Home"}
-                />
-              ) : (
-                <div className="h-full flex flex-col items-center justify-center text-center p-8"><Lock className="w-8 h-8 text-slate-200 mb-4" /><p className="text-xs font-black uppercase text-slate-400">Viewer Mode</p></div>
-              )}
+              <ActionPanel 
+                homeRoster={gameState.roster.home}
+                onAction={handleAction}
+                onUndo={handleUndo}
+                onSwitchPossession={handleSwitchPossession}
+                canUndo={history.length > 0}
+                isHomeOffense={gameState.possession === "Home"}
+              />
             </Card>
             <PlayLog plays={gameState.playLog} />
           </div>

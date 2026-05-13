@@ -30,7 +30,7 @@ interface ScheduledGame {
 }
 
 const GamesList = () => {
-  const { teamCode, isAdmin } = useAuth();
+  const { teamCode } = useAuth();
   const [games, setGames] = useState<(GameState | ScheduledGame)[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isResultDialogOpen, setIsResultDialogOpen] = useState(false);
@@ -94,7 +94,7 @@ const GamesList = () => {
     setGames(updated);
     localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(updated));
 
-    if (supabase && isAdmin) {
+    if (supabase) {
       setIsSyncing(true);
       await supabase
         .from('seasons')
@@ -104,7 +104,6 @@ const GamesList = () => {
   };
 
   const handleAddGame = () => {
-    if (!isAdmin) return showError("Admin access required");
     const game: ScheduledGame = {
       id: Math.random().toString(36).substr(2, 9),
       ...newGame,
@@ -117,7 +116,7 @@ const GamesList = () => {
   };
 
   const handleEnterResult = () => {
-    if (!selectedGame || !isAdmin) return;
+    if (!selectedGame) return;
     
     const updated = games.map(g => {
       const gId = 'id' in g ? g.id : (g as any).currentDriveId;
@@ -145,7 +144,6 @@ const GamesList = () => {
   };
 
   const deleteGame = (id: string) => {
-    if (!isAdmin) return showError("Admin access required");
     const updated = games.filter(g => {
       const gId = 'id' in g ? g.id : (g as any).currentDriveId;
       return gId !== id;
@@ -176,47 +174,45 @@ const GamesList = () => {
           </div>
           
           <div className="flex gap-2">
-            {isAdmin && (
-              <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button className="gap-2 bg-slate-900">
-                    <Plus className="w-4 h-4" /> Schedule Game
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-[425px]">
-                  <DialogHeader>
-                    <DialogTitle>Schedule New Game</DialogTitle>
-                  </DialogHeader>
-                  <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Date</Label>
-                        <Input type="date" value={newGame.date} onChange={e => setNewGame({...newGame, date: e.target.value})} />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Time</Label>
-                        <Input type="time" value={newGame.time} onChange={e => setNewGame({...newGame, time: e.target.value})} />
-                      </div>
+            <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2 bg-slate-900">
+                  <Plus className="w-4 h-4" /> Schedule Game
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                  <DialogTitle>Schedule New Game</DialogTitle>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Date</Label>
+                      <Input type="date" value={newGame.date} onChange={e => setNewGame({...newGame, date: e.target.value})} />
                     </div>
                     <div className="space-y-2">
-                      <Label>Home Team</Label>
-                      <Input placeholder="Wildcats" value={newGame.homeTeam} onChange={e => setNewGame({...newGame, homeTeam: e.target.value})} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Away Team</Label>
-                      <Input placeholder="Eagles" value={newGame.awayTeam} onChange={e => setNewGame({...newGame, awayTeam: e.target.value})} />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Location</Label>
-                      <Input placeholder="Memorial Stadium" value={newGame.location} onChange={e => setNewGame({...newGame, location: e.target.value})} />
+                      <Label>Time</Label>
+                      <Input type="time" value={newGame.time} onChange={e => setNewGame({...newGame, time: e.target.value})} />
                     </div>
                   </div>
-                  <DialogFooter>
-                    <Button onClick={handleAddGame} className="w-full bg-emerald-600 hover:bg-emerald-700">Save Schedule</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
+                  <div className="space-y-2">
+                    <Label>Home Team</Label>
+                    <Input placeholder="Wildcats" value={newGame.homeTeam} onChange={e => setNewGame({...newGame, homeTeam: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Away Team</Label>
+                    <Input placeholder="Eagles" value={newGame.awayTeam} onChange={e => setNewGame({...newGame, awayTeam: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Location</Label>
+                    <Input placeholder="Memorial Stadium" value={newGame.location} onChange={e => setNewGame({...newGame, location: e.target.value})} />
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button onClick={handleAddGame} className="w-full bg-emerald-600 hover:bg-emerald-700">Save Schedule</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <Link to="/season-stats">
               <Button variant="outline" className="gap-2 font-bold">
@@ -272,7 +268,7 @@ const GamesList = () => {
                     </div>
 
                     <div className="flex items-center gap-3">
-                      {isAdmin && !live && status === 'scheduled' && (
+                      {!live && status === 'scheduled' && (
                         <Button 
                           variant="secondary" 
                           size="sm"
@@ -286,11 +282,9 @@ const GamesList = () => {
                         </Button>
                       )}
                       
-                      {isAdmin && (
-                        <Button variant="ghost" size="icon" onClick={() => deleteGame(id)} className="text-slate-300 hover:text-red-500">
-                          <Trash2 className="w-4 h-4" />
-                        </Button>
-                      )}
+                      <Button variant="ghost" size="icon" onClick={() => deleteGame(id)} className="text-slate-300 hover:text-red-500">
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                       
                       {live && (
                         <Link to="/report">

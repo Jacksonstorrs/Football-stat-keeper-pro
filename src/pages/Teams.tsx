@@ -14,10 +14,12 @@ import {
   Shield,
   Users,
   AlertCircle,
+  RefreshCw
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { showSuccess } from "@/utils/toast";
+import { showSuccess, showError } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 
 const STORAGE_KEY = "football_stat_keeper_teams_v1";
@@ -100,26 +102,68 @@ const Teams = () => {
   const [awayTeamName, setAwayTeamName] = useState("");
   const [homeRoster, setHomeRoster] = useState<Player[]>([]);
   const [awayRoster, setAwayRoster] = useState<Player[]>([]);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
-    if (saved) {
-      const d = JSON.parse(saved);
-      setHomeTeamName(d.homeTeamName || "");
-      setAwayTeamName(d.awayTeamName || "");
-      setHomeRoster(d.homeRoster || []);
-      setAwayRoster(d.awayRoster || []);
-    }
+    if (!teamCode) return;
+
+    const loadData = async () => {
+      // Load from local storage first
+      const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
+      if (saved) {
+        const d = JSON.parse(saved);
+        setHomeTeamName(d.homeTeamName || "");
+        setAwayTeamName(d.awayTeamName || "");
+        setHomeRoster(d.homeRoster || []);
+        setAwayRoster(d.awayRoster || []);
+      }
+
+      // Then fetch from Supabase
+      const { data, error } = await supabase
+        .from('teams')
+        .select('data')
+        .eq('id', teamCode)
+        .single();
+      
+      if (data?.data) {
+        const d = data.data;
+        setHomeTeamName(d.homeTeamName || "");
+        setAwayTeamName(d.awayTeamName || "");
+        setHomeRoster(d.homeRoster || []);
+        setAwayRoster(d.awayRoster || []);
+        localStorage.setItem(`${STORAGE_KEY}_${teamCode}`, JSON.stringify(d));
+      }
+    };
+
+    loadData();
   }, [teamCode]);
 
-  const saveTeams = () => {
+  const saveTeams = async () => {
     if (!homeTeamName || !awayTeamName) {
-      showSuccess("Please enter both team names before saving.");
+      showError("Please enter both team names before saving.");
       return;
     }
+    
     const data = { homeTeamName, awayTeamName, homeRoster, awayRoster };
+    
+    // Save locally
     localStorage.setItem(`${STORAGE_KEY}_${teamCode}`, JSON.stringify(data));
-    showSuccess("Team data saved successfully");
+    
+    // Sync to cloud
+    setIsSyncing(true);
+    try {
+      const { error } = await supabase
+        .from('teams')
+        .upsert({ id: teamCode, data, updated_at: new Date().toISOString() });
+      
+      if (error) throw error;
+      showSuccess("Team data synced to cloud");
+    } catch (err) {
+      console.error("Sync error:", err);
+      showError("Failed to sync to cloud, saved locally");
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const addPlayer = (team: "home" | "away") => {
@@ -166,8 +210,9 @@ const Teams = () => {
               <p className="text-slate-500 text-sm font-medium">Configure rosters for {teamCode}</p>
             </div>
           </div>
-          <Button onClick={saveTeams} className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-lg">
-            <Save className="w-4 h-4" /> Save Changes
+          <Button onClick={saveTeams} disabled={isSyncing} className="gap-2 bg-emerald-600 hover:bg-emerald-700 shadow-lg">
+            {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            {isSyncing ? "Syncing..." : "Save & Sync"}
           </Button>
         </div>
 

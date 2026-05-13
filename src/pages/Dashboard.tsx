@@ -6,11 +6,12 @@ import { Link } from "react-router-dom";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Trophy, Users, Calendar, BarChart3, PlayCircle, History, ArrowRight, Activity, Target, Zap, Radio, Share2, Copy, Check } from "lucide-react";
+import { Trophy, Users, Calendar, BarChart3, PlayCircle, History, ArrowRight, Activity, Target, Zap, Radio, Share2, Copy, Check, RefreshCw } from "lucide-react";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { showSuccess } from "@/utils/toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
@@ -24,78 +25,116 @@ const Dashboard = () => {
   });
   const [activeGame, setActiveGame] = useState<any>(null);
   const [copied, setCopied] = useState(false);
-  const [liveScore, setLiveScore] = useState({ homeScore: 0, awayScore: 0 });
   const [teamStandings, setTeamStandings] = useState<Record<string, any>>({});
   const [filterTeam, setFilterTeam] = useState<string>("all");
   const [sortedPlayers, setSortedPlayers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!teamCode) return;
 
-    const loadData = () => {
-      const savedSeason = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
-      if (savedSeason) {
-        const games = JSON.parse(savedSeason);
-        const completedGames = games.filter((g: any) => g.status === 'completed');
-        const wins = completedGames.filter((g: any) => 
-          g.winner === teamCode || 
-          (g.homeTeam === teamCode && g.homeScore > g.awayScore) || 
-          (g.awayTeam === teamCode && g.awayScore > g.homeScore)
-        ).length;
+    const loadData = async () => {
+      setLoading(true);
+      
+      // Fetch Season Data
+      const { data: seasonData } = await supabase
+        .from('seasons')
+        .select('data')
+        .eq('id', teamCode)
+        .single();
+      
+      const games = seasonData?.data || [];
+      const completedGames = games.filter((g: any) => g.status === 'completed');
+      const wins = completedGames.filter((g: any) => 
+        g.winner === teamCode || 
+        (g.homeTeam === teamCode && g.homeScore > g.awayScore) || 
+        (g.awayTeam === teamCode && g.awayScore > g.homeScore)
+      ).length;
+      
+      setStats({
+        gamesPlayed: completedGames.length,
+        winRate: completedGames.length > 0 ? Math.round((wins / completedGames.length) * 100) : 0,
+        recentActivity: games.slice(0, 5)
+      });
+
+      // Process Standings and Player Stats
+      const standings: Record<string, any> = {};
+      const playerStats: Record<string, any> = {};
+
+      games.forEach((game: any) => {
+        const homeTeam = game.homeTeam || "Unknown Home";
+        const awayTeam = game.awayTeam || "Unknown Away";
         
-        setStats({
-          gamesPlayed: completedGames.length,
-          winRate: completedGames.length > 0 ? Math.round((wins / completedGames.length) * 100) : 0,
-          recentActivity: games.slice(0, 5)
-        });
-
-        // Initialize team standings
-        const standings: Record<string, any> = {};
-        games.forEach((game: any) => {
-          if (game.status === 'completed') {
-            const homeTeam = game.homeTeam || "Unknown Home";
-            const awayTeam = game.awayTeam || "Unknown Away";
-            
-            if (!standings[homeTeam]) {
-              standings[homeTeam] = { name: homeTeam, wins: 0, losses: 0, ties: 0, pf: 0, pa: 0 };
-            }
-            if (!standings[awayTeam]) {
-              standings[awayTeam] = { name: awayTeam, wins: 0, losses: 0, ties: 0, pf: 0, pa: 0 };
-            }
-            
-            if (game.homeScore > game.awayScore) {
-              standings[homeTeam].wins += 1;
-              standings[awayTeam].losses += 1;
-            } else if (game.awayScore > game.homeScore) {
-              standings[awayTeam].wins += 1;
-              standings[homeTeam].losses += 1;
-            } else {
-              standings[homeTeam].ties += 1;
-              standings[awayTeam].ties += 1;
-            }
-            
-            standings[homeTeam].pf += game.homeScore;
-            standings[homeTeam].pa += game.awayScore;
-            standings[awayTeam].pf += game.awayScore;
-            standings[awayTeam].pa += game.homeScore;
+        if (game.status === 'completed') {
+          if (!standings[homeTeam]) standings[homeTeam] = { name: homeTeam, wins: 0, losses: 0, ties: 0, pf: 0, pa: 0 };
+          if (!standings[awayTeam]) standings[awayTeam] = { name: awayTeam, wins: 0, losses: 0, ties: 0, pf: 0, pa: 0 };
+          
+          if (game.homeScore > game.awayScore) {
+            standings[homeTeam].wins += 1;
+            standings[awayTeam].losses += 1;
+          } else if (game.awayScore > game.homeScore) {
+            standings[awayTeam].wins += 1;
+            standings[homeTeam].losses += 1;
+          } else {
+            standings[homeTeam].ties += 1;
+            standings[awayTeam].ties += 1;
           }
-        });
-        setTeamStandings(standings);
+          
+          standings[homeTeam].pf += game.homeScore;
+          standings[homeTeam].pa += game.awayScore;
+          standings[awayTeam].pf += game.awayScore;
+          standings[awayTeam].pa += game.homeScore;
+        }
+
+        // Aggregate Player Stats
+        if (game.stats && game.roster) {
+          const allPlayers = [
+            ...(game.roster.home || []).map((p: any) => ({ ...p, team: homeTeam })),
+            ...(game.roster.away || []).map((p: any) => ({ ...p, team: awayTeam }))
+          ];
+
+          allPlayers.forEach(p => {
+            if (!playerStats[p.id]) {
+              playerStats[p.id] = { ...p, passYds: 0, rushYds: 0, passTDs: 0, rushTDs: 0 };
+            }
+            const s = game.stats[p.id];
+            if (s) {
+              playerStats[p.id].passYds += s.passYds || 0;
+              playerStats[p.id].rushYds += s.rushYds || 0;
+              playerStats[p.id].passTDs += s.passTDs || 0;
+              playerStats[p.id].rushTDs += s.rushTDs || 0;
+            }
+          });
+        }
+      });
+
+      setTeamStandings(standings);
+      setSortedPlayers(Object.values(playerStats).sort((a: any, b: any) => (b.passYds + b.rushYds) - (a.passYds + a.rushYds)).slice(0, 5));
+
+      // Fetch Active Game
+      const { data: activeGameData } = await supabase
+        .from('games')
+        .select('state')
+        .eq('id', teamCode)
+        .single();
+      
+      if (activeGameData?.state) {
+        setActiveGame(activeGameData.state);
       }
 
-      const savedGame = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
-      if (savedGame) {
-        const game = JSON.parse(savedGame);
-        if (game.playLog?.length > 0 || game.homeScore > 0 || game.awayScore > 0) {
-          setActiveGame(game);
-          setLiveScore({ homeScore: game.homeScore, awayScore: game.awayScore });
-        }
-      }
+      setLoading(false);
     };
 
     loadData();
-    window.addEventListener('storage', loadData);
-    return () => window.removeEventListener('storage', loadData);
+    
+    // Subscribe to changes
+    const channel = supabase
+      .channel(`dashboard_${teamCode}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'seasons', filter: `id=eq.${teamCode}` }, loadData)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'games', filter: `id=eq.${teamCode}` }, loadData)
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, [teamCode]);
 
   const handleCopyLink = () => {
@@ -144,6 +183,14 @@ const Dashboard = () => {
       textColor: "text-purple-600 dark:text-purple-400"
     }
   ];
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 dark:bg-slate-950 flex items-center justify-center">
+        <div className="animate-pulse text-slate-400 font-black uppercase tracking-widest">Loading Dashboard...</div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950">
@@ -219,7 +266,7 @@ const Dashboard = () => {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
           {menuItems.map((item, idx) => (
             <Link key={item.title} to={item.link} className="group">
-              <Card className={`p-6 h-full hover:shadow-2xl hover:-translate-y-1 transition-all border-none bg-white dark:bg-slate-900 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500 delay-[${idx * 100}ms]`}>
+              <Card className={`p-6 h-full hover:shadow-2xl hover:-translate-y-1 transition-all border-none bg-white dark:bg-slate-900 relative overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500`}>
                 <div className={`w-12 h-12 rounded-xl ${item.lightColor} ${item.textColor} flex items-center justify-center mb-4 group-hover:scale-110 transition-transform`}>
                   <item.icon className="w-6 h-6" />
                 </div>

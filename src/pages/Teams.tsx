@@ -22,6 +22,78 @@ import Header from "@/components/Header";
 
 const STORAGE_KEY = "football_stat_keeper_teams_v1";
 
+interface RosterEditorProps {
+  team: "home" | "away";
+  roster: Player[];
+  onAdd: (team: "home" | "away") => void;
+  onUpdate: (team: "home" | "away", id: string, field: keyof Player, value: string | number) => void;
+  onRemove: (team: "home" | "away", id: string) => void;
+}
+
+const RosterEditor = ({ team, roster, onAdd, onUpdate, onRemove }: RosterEditorProps) => (
+  <div className="space-y-4">
+    <div className="flex justify-between items-center">
+      <h3 className="text-lg font-bold flex items-center gap-2">
+        <Users className="w-5 h-5 text-slate-400" />
+        Roster ({roster.length})
+      </h3>
+      <Button onClick={() => onAdd(team)} variant="outline" size="sm" className="gap-2">
+        <UserPlus className="w-4 h-4" /> Add Player
+      </Button>
+    </div>
+    <div className="grid grid-cols-1 gap-2">
+      {roster.length === 0 ? (
+        <div className="text-center py-8 border-2 border-dashed rounded-lg text-slate-400 text-sm">
+          No players added yet.
+        </div>
+      ) : (
+        roster.map((player) => (
+          <div key={player.id} className="flex gap-2 items-center bg-white p-3 rounded-lg border shadow-sm">
+            <div className="w-16">
+              <Label className="text-[10px] uppercase text-slate-400">No.</Label>
+              <input
+                type="number"
+                defaultValue={player.number || ""}
+                onBlur={(e) => onUpdate(team, player.id, "number", parseInt(e.target.value) || 0)}
+                className="h-8 w-full font-bold bg-white border border-slate-200 rounded px-2 text-black"
+                placeholder="00"
+              />
+            </div>
+            <div className="flex-1">
+              <Label className="text-[10px] uppercase text-slate-400">Name</Label>
+              <input
+                type="text"
+                defaultValue={player.name}
+                onBlur={(e) => onUpdate(team, player.id, "name", e.target.value)}
+                className="h-8 w-full bg-white border border-slate-200 rounded px-2 text-black"
+                placeholder="Player Name"
+              />
+            </div>
+            <div className="w-20">
+              <Label className="text-[10px] uppercase text-slate-400">Pos</Label>
+              <input
+                type="text"
+                defaultValue={player.position}
+                onBlur={(e) => onUpdate(team, player.id, "position", e.target.value)}
+                className="h-8 w-full uppercase bg-white border border-slate-200 rounded px-2 text-black"
+                placeholder="QB"
+              />
+            </div>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => onRemove(team, player.id)}
+              className="mt-5 text-slate-400 hover:text-red-500"
+            >
+              <Trash2 className="w-4 h-4" />
+            </Button>
+          </div>
+        ))
+      )}
+    </div>
+  </div>
+);
+
 const Teams = () => {
   const { teamCode } = useAuth();
   const [homeTeamName, setHomeTeamName] = useState("");
@@ -29,9 +101,7 @@ const Teams = () => {
   const [homeRoster, setHomeRoster] = useState<Player[]>([]);
   const [awayRoster, setAwayRoster] = useState<Player[]>([]);
 
-  // -------------------------------------------------------------------------
-  // Load saved data
-  // -------------------------------------------------------------------------  useEffect(() => {
+  useEffect(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
     if (saved) {
       const d = JSON.parse(saved);
@@ -42,8 +112,7 @@ const Teams = () => {
     }
   }, [teamCode]);
 
-  // -------------------------------------------------------------------------  // Save handler
-  // -------------------------------------------------------------------------  const saveTeams = () => {
+  const saveTeams = () => {
     if (!homeTeamName || !awayTeamName) {
       showSuccess("Please enter both team names before saving.");
       return;
@@ -53,9 +122,6 @@ const Teams = () => {
     showSuccess("Team data saved successfully");
   };
 
-  // -------------------------------------------------------------------------
-  // Roster helpers
-  // -------------------------------------------------------------------------
   const addPlayer = (team: "home" | "away") => {
     const newPlayer: Player = {
       id: Math.random().toString(36).substr(2, 9),
@@ -83,70 +149,6 @@ const Teams = () => {
     if (team === "home") setHomeRoster(homeRoster.filter((p) => p.id !== id));
     else setAwayRoster(awayRoster.filter((p) => p.id !== id));
   };
-
-  const RosterEditor = ({ team, roster }: { team: "home" | "away"; roster: Player[] }) => (
-    <div className="space-y-4">
-      <div className="flex justify-between items-center">
-        <h3 className="text-lg font-bold flex items-center gap-2">
-          <Users className="w-5 h-5 text-slate-400" />
-          Roster ({roster.length})
-        </h3>
-        <Button onClick={() => addPlayer(team)} variant="outline" size="sm" className="gap-2">
-          <UserPlus className="w-4 h-4" /> Add Player
-        </Button>
-      </div>
-      <div className="grid grid-cols-1 gap-2">
-        {roster.length === 0 ? (
-          <div className="text-center py-8 border-2 border-dashed rounded-lg text-slate-400 text-sm">
-            No players added yet.
-          </div>
-        ) : (
-          roster.map((player) => (
-            <div key={player.id} className="flex gap-2 items-center bg-white p-3 rounded-lg border shadow-sm">
-              <div className="w-16">
-                <Label className="text-[10px] uppercase text-slate-400">No.</Label>
-                <input
-                  type="number"
-                  defaultValue={player.number || ""}
-                  onChange={(e) => updatePlayer(team, player.id, "number", parseInt(e.target.value) || 0)}
-                  className="h-8 w-full font-bold bg-white border border-slate-200 rounded px-2 text-black"
-                  placeholder="00"
-                />
-              </div>
-              <div className="flex-1">
-                <Label className="text-[10px] uppercase text-slate-400">Name</Label>
-                <input
-                  type="text"
-                  defaultValue={player.name}
-                  onChange={(e) => updatePlayer(team, player.id, "name", e.target.value)}
-                  className="h-8 w-full bg-white border border-slate-200 rounded px-2 text-black"
-                  placeholder="Player Name"
-                />
-              </div>
-              <div className="w-20">
-                <Label className="text-[10px] uppercase text-slate-400">Pos</Label>
-                <input
-                  type="text"
-                  defaultValue={player.position}
-                  onChange={(e) => updatePlayer(team, player.id, "position", e.target.value)}
-                  className="h-8 w-full uppercase bg-white border border-slate-200 rounded px-2 text-black"
-                  placeholder="QB"
-                />
-              </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => removePlayer(team, player.id)}
-                className="mt-5 text-slate-400 hover:text-red-500"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </div>
-          ))
-        )}
-      </div>
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -193,7 +195,13 @@ const Teams = () => {
                 />
               </div>
             </div>
-            <RosterEditor team="home" roster={homeRoster} />
+            <RosterEditor 
+              team="home" 
+              roster={homeRoster} 
+              onAdd={addPlayer} 
+              onUpdate={updatePlayer} 
+              onRemove={removePlayer} 
+            />
           </Card>
 
           <Card className="p-6 space-y-6 border-none shadow-lg bg-white relative overflow-hidden">
@@ -212,7 +220,13 @@ const Teams = () => {
                 />
               </div>
             </div>
-            <RosterEditor team="away" roster={awayRoster} />
+            <RosterEditor 
+              team="away" 
+              roster={awayRoster} 
+              onAdd={addPlayer} 
+              onUpdate={updatePlayer} 
+              onRemove={removePlayer} 
+            />
           </Card>
         </div>
       </main>

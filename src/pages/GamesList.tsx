@@ -12,7 +12,7 @@ import { Link } from "react-router-dom";
 import { Trophy, Calendar, ArrowLeft, Plus, Trash2, ChevronRight, MapPin, Clock, CheckCircle2, RefreshCw } from "lucide-react";
 import { showSuccess, showError } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 
 const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
 
@@ -57,50 +57,44 @@ const GamesList = () => {
       const saved = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
       if (saved) setGames(JSON.parse(saved));
 
-      if (supabase) {
-        const { data } = await supabase
-          .from('seasons')
-          .select('data')
-          .eq('id', teamCode)
-          .single();
-        
-        if (data?.data) {
-          setGames(data.data);
-          localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(data.data));
-        }
+      const { data, error } = await supabase
+        .from('seasons')
+        .select('data')
+        .eq('id', teamCode)
+        .single();
+      
+      if (data?.data) {
+        setGames(data.data);
+        localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(data.data));
       }
     };
 
     loadGames();
 
-    if (supabase) {
-      const channel = supabase
-        .channel(`season_${teamCode}`)
-        .on('postgres_changes', { event: '*', schema: 'public', table: 'seasons', filter: `id=eq.${teamCode}` }, 
-          payload => {
-            if (payload.new && payload.new.data) {
-              setGames(payload.new.data);
-              localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(payload.new.data));
-            }
+    const channel = supabase
+      .channel(`season_${teamCode}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'seasons', filter: `id=eq.${teamCode}` }, 
+        payload => {
+          if (payload.new && payload.new.data) {
+            setGames(payload.new.data);
+            localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(payload.new.data));
           }
-        )
-        .subscribe();
+        }
+      )
+      .subscribe();
 
-      return () => { supabase.removeChannel(channel); };
-    }
+    return () => { supabase.removeChannel(channel); };
   }, [teamCode]);
 
   const saveGames = async (updated: (GameState | ScheduledGame)[]) => {
     setGames(updated);
     localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(updated));
 
-    if (supabase) {
-      setIsSyncing(true);
-      await supabase
-        .from('seasons')
-        .upsert({ id: teamCode, data: updated, updated_at: new Date().toISOString() });
-      setIsSyncing(false);
-    }
+    setIsSyncing(true);
+    await supabase
+      .from('seasons')
+      .upsert({ id: teamCode, data: updated, updated_at: new Date().toISOString() });
+    setIsSyncing(false);
   };
 
   const handleAddGame = () => {

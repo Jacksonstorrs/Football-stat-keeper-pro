@@ -13,7 +13,7 @@ import {
 import { Link } from "react-router-dom";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/context/AuthContext";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, AreaChart, Area 
@@ -48,17 +48,15 @@ const SeasonStats = () => {
       const saved = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
       let gameData = saved ? JSON.parse(saved) : [];
 
-      if (supabase) {
-        const { data } = await supabase
-          .from('seasons')
-          .select('data')
-          .eq('id', teamCode)
-          .single();
-        
-        if (data?.data) {
-          gameData = data.data;
-          localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(gameData));
-        }
+      const { data, error } = await supabase
+        .from('seasons')
+        .select('data')
+        .eq('id', teamCode)
+        .single();
+      
+      if (data?.data) {
+        gameData = data.data;
+        localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(gameData));
       }
 
       processStats(gameData);

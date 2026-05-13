@@ -32,11 +32,11 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      
+
       // If logged in, try to get the team code from metadata or local storage
       const storedCode = localStorage.getItem("teamCode");
       if (storedCode) setTeamCode(storedCode);
-      
+
       setLoading(false);
     });
 
@@ -45,7 +45,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
+
       if (!session) {
         setTeamCode(null);
         localStorage.removeItem("teamCode");

@@ -7,25 +7,63 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { 
   BarChart3, TrendingUp, Zap, Shield, ArrowLeft, 
-  Target, Activity, PieChart, ChevronRight 
+  Target, Activity, PieChart, ChevronRight, Loader2 
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, LineChart, Line 
 } from 'recharts';
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEY = 'football_stat_keeper_pro_v2';
 
 const CoachAnalytics = () => {
+  const { teamCode } = useAuth();
   const [game, setGame] = useState<GameState | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) setGame(JSON.parse(saved));
-  }, []);
+    const loadAnalytics = async () => {
+      setLoading(true);
+      
+      // Try local storage first
+      const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
+      if (saved) {
+        setGame(JSON.parse(saved));
+      }
 
-  if (!game) return <div className="p-10 text-center">No active game data found.</div>;
+      // Fetch latest from Supabase
+      if (teamCode) {
+        const { data, error } = await supabase
+          .from('games')
+          .select('state')
+          .eq('id', teamCode)
+          .single();
+        
+        if (data?.state) {
+          setGame(data.state);
+        }
+      }
+      setLoading(false);
+    };
+
+    loadAnalytics();
+  }, [teamCode]);
+
+  if (loading && !game) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Analyzing Performance...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!game) return <div className="p-10 text-center text-white">No active game data found for analysis.</div>;
 
   const plays = game.playLog;
   const drives = game.drives;

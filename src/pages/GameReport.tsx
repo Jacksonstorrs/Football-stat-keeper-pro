@@ -5,20 +5,58 @@ import { GameState, Play, Drive } from "@/types/football";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Printer, ArrowLeft, FileText, Download, Trophy, Clock, MapPin } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Printer, ArrowLeft, FileText, Download, Trophy, Clock, MapPin, Loader2 } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const STORAGE_KEY = 'football_stat_keeper_pro_v2';
 
 const GameReport = () => {
+  const { teamCode } = useAuth();
   const [game, setGame] = useState<GameState | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) setGame(JSON.parse(saved));
-  }, []);
+    const loadGameData = async () => {
+      setLoading(true);
+      
+      // Try local storage first for immediate feedback
+      const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
+      if (saved) {
+        setGame(JSON.parse(saved));
+      }
 
-  if (!game) return <div className="p-10 text-center">No game data found.</div>;
+      // Fetch latest from Supabase
+      if (teamCode) {
+        const { data, error } = await supabase
+          .from('games')
+          .select('state')
+          .eq('id', teamCode)
+          .single();
+        
+        if (data?.state) {
+          setGame(data.state);
+        }
+      }
+      setLoading(false);
+    };
+
+    loadGameData();
+  }, [teamCode]);
+
+  if (loading && !game) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+          <p className="text-xs font-black uppercase tracking-widest text-slate-400">Generating Report...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!game) return <div className="p-10 text-center">No game data found for this session.</div>;
 
   const handlePrint = () => window.print();
 

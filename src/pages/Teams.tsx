@@ -85,31 +85,31 @@ const Teams = () => {
             <div key={player.id} className="flex gap-2 items-center bg-white p-3 rounded-lg border shadow-sm">
               <div className="w-16">
                 <Label className="text-[10px] uppercase text-slate-400">No.</Label>
-                <Input 
+                <input
                   type="number"
                   value={player.number || ""} 
                   onChange={(e) => updatePlayer(team, player.id, 'number', parseInt(e.target.value) || 0)}
-                  className="h-8 font-bold bg-slate-100 text-black"
+                  className="h-8 w-full font-bold bg-white border border-slate-200 rounded px-2 text-black"
                   placeholder="00"
                 />
               </div>
               <div className="flex-1">
                 <Label className="text-[10px] uppercase text-slate-400">Name</Label>
-                <Input 
+                <input
                   type="text"
                   value={player.name} 
                   onChange={(e) => updatePlayer(team, player.id, 'name', e.target.value)}
-                  className="h-8 bg-slate-100 text-black"
+                  className="h-8 w-full bg-white border border-slate-200 rounded px-2 text-black"
                   placeholder="Player Name"
                 />
               </div>
               <div className="w-20">
                 <Label className="text-[10px] uppercase text-slate-400">Pos</Label>
-                <Input 
+                <input
                   type="text"
                   value={player.position} 
                   onChange={(e) => updatePlayer(team, player.id, 'position', e.target.value)}
-                  className="h-8 uppercase bg-slate-100 text-black"
+                  className="h-8 w-full uppercase bg-white border border-slate-200 rounded px-2 text-black"
                   placeholder="QB"
                 />
               </div>

@@ -1,18 +1,26 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Player } from "@/types/football";
-import { UserPlus, Trash2, Save, ArrowLeft, Shield, Users, AlertCircle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import {
+  UserPlus,
+  Trash2,
+  Save,
+  ArrowLeft,
+  Shield,
+  Users,
+  AlertCircle,
+} from "lucide-react";
+import { Link } from "react-router-dom";
 import { showSuccess } from "@/utils/toast";
 import { useAuth } from "@/context/AuthContext";
 import Header from "@/components/Header";
 
-const STORAGE_KEY = 'football_stat_keeper_teams_v1';
+const STORAGE_KEY = "football_stat_keeper_teams_v1";
 
 const Teams = () => {
   const { teamCode } = useAuth();
@@ -21,6 +29,9 @@ const Teams = () => {
   const [homeRoster, setHomeRoster] = useState<Player[]>([]);
   const [awayRoster, setAwayRoster] = useState<Player[]>([]);
 
+  // -------------------------------------------------------------------------
+  // Load saved data
+  // -------------------------------------------------------------------------
   useEffect(() => {
     const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
     if (saved) {
@@ -32,6 +43,9 @@ const Teams = () => {
     }
   }, [teamCode]);
 
+  // -------------------------------------------------------------------------
+  // Save handler
+  // -------------------------------------------------------------------------
   const saveTeams = () => {
     if (!homeTeamName || !awayTeamName) {
       showSuccess("Please enter both team names before saving.");
@@ -42,29 +56,126 @@ const Teams = () => {
     showSuccess("Team data saved successfully");
   };
 
-  const addPlayer = (team: 'home' | 'away') => {
+  // -------------------------------------------------------------------------
+  // Roster helpers
+  // -------------------------------------------------------------------------
+  const addPlayer = (team: "home" | "away") => {
     const newPlayer: Player = {
       id: Math.random().toString(36).substr(2, 9),
       name: "",
       number: 0,
-      position: ""
+      position: "",
     };
-    if (team === 'home') setHomeRoster([...homeRoster, newPlayer]);
+    if (team === "home") setHomeRoster([...homeRoster, newPlayer]);
     else setAwayRoster([...awayRoster, newPlayer]);
   };
 
-  const updatePlayer = (team: 'home' | 'away', id: string, field: keyof Player, value: string | number) => {
-    const update = (list: Player[]) => list.map(p => p.id === id ? { ...p, [field]: value } : p);
-    if (team === 'home') setHomeRoster(update(homeRoster));
-    else setAwayRoster(update(awayRoster));
+  const updatePlayer = (
+    team: "home" | "away",
+    id: string,
+    field: keyof Player,
+    value: string | number
+  ) => {
+    const updater = (list: Player[]) =>
+      list.map((p) => (p.id === id ? { ...p, [field]: value } : p));
+    if (team === "home") setHomeRoster(updater(homeRoster));
+    else setAwayRoster(updater(awayRoster));
   };
 
-  const removePlayer = (team: 'home' | 'away', id: string) => {
-    if (team === 'home') setHomeRoster(homeRoster.filter(p => p.id !== id));
-    else setAwayRoster(awayRoster.filter(p => p.id !== id));
+  const removePlayer = (team: "home" | "away", id: string) => {
+    if (team === "home") setHomeRoster(homeRoster.filter((p) => p.id !== id));
+    else setAwayRoster(awayRoster.filter((p) =>
+<dyad-write path="src/pages/Teams.tsx" description="Use uncontrolled inputs and update on blur to keep focus while typing">
+"use client";
+
+import React, { useState, useEffect } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Player } from "@/types/football";
+import {
+  UserPlus,
+  Trash2,
+  Save,
+  ArrowLeft,
+  Shield,
+  Users,
+  AlertCircle,
+} from "lucide-react";
+import { Link } from "react-router-dom";
+import { showSuccess } from "@/utils/toast";
+import { useAuth } from "@/context/AuthContext";
+import Header from "@/components/Header";
+
+const STORAGE_KEY = "football_stat_keeper_teams_v1";
+
+const Teams = () => {
+  const { teamCode } = useAuth();
+  const [homeTeamName, setHomeTeamName] = useState("");
+  const [awayTeamName, setAwayTeamName] = useState("");
+  const [homeRoster, setHomeRoster] = useState<Player[]>([]);
+  const [awayRoster, setAwayRoster] = useState<Player[]>([]);
+
+  // -------------------------------------------------------------------------
+  // Load saved data
+  // -------------------------------------------------------------------------
+  useEffect(() => {
+    const saved = localStorage.getItem(`${STORAGE_KEY}_${teamCode}`);
+    if (saved) {
+      const d = JSON.parse(saved);
+      setHomeTeamName(d.homeTeamName || "");
+      setAwayTeamName(d.awayTeamName || "");
+      setHomeRoster(d.homeRoster || []);
+      setAwayRoster(d.awayRoster || []);
+    }
+  }, [teamCode]);
+
+  // -------------------------------------------------------------------------
+  // Save handler
+  // -------------------------------------------------------------------------
+  const saveTeams = () => {
+    if (!homeTeamName || !awayTeamName) {
+      showSuccess("Please enter both team names before saving.");
+      return;
+    }
+    const data = { homeTeamName, awayTeamName, homeRoster, awayRoster };
+    localStorage.setItem(`${STORAGE_KEY}_${teamCode}`, JSON.stringify(data));
+    showSuccess("Team data saved successfully");
   };
 
-  const RosterEditor = ({ team, roster }: { team: 'home' | 'away', roster: Player[] }) => (
+  // -------------------------------------------------------------------------
+  // Roster helpers
+  // -------------------------------------------------------------------------
+  const addPlayer = (team: "home" | "away") => {
+    const newPlayer: Player = {
+      id: Math.random().toString(36).substr(2, 9),
+      name: "",
+      number: 0,
+      position: "",
+    };
+    if (team === "home") setHomeRoster([...homeRoster, newPlayer]);
+    else setAwayRoster([...awayRoster, newPlayer]);
+  };
+
+  const updatePlayer = (
+    team: "home" | "away",
+    id: string,
+    field: keyof Player,
+    value: string | number
+  ) => {
+    const updater = (list: Player[]) =>
+      list.map((p) => (p.id === id ? { ...p, [field]: value } : p));
+    if (team === "home") setHomeRoster(updater(homeRoster));
+    else setAwayRoster(updater(awayRoster));
+  };
+
+  const removePlayer = (team: "home" | "away", id: string) => {
+    if (team === "home") setHomeRoster(homeRoster.filter((p) => p.id !== id));
+    else setAwayRoster(awayRoster.filter((p) => p.id !== id));
+  };
+
+  const RosterEditor = ({ team, roster }: { team: "home" | "away"; roster: Player[] }) => (
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-lg font-bold flex items-center gap-2">
@@ -87,8 +198,8 @@ const Teams = () => {
                 <Label className="text-[10px] uppercase text-slate-400">No.</Label>
                 <input
                   type="number"
-                  value={player.number || ""} 
-                  onChange={(e) => updatePlayer(team, player.id, 'number', parseInt(e.target.value) || 0)}
+                  defaultValue={player.number || ""}
+                  onChange={(e) => updatePlayer(team, player.id, "number", parseInt(e.target.value) || 0)}
                   className="h-8 w-full font-bold bg-white border border-slate-200 rounded px-2 text-black"
                   placeholder="00"
                 />
@@ -97,8 +208,8 @@ const Teams = () => {
                 <Label className="text-[10px] uppercase text-slate-400">Name</Label>
                 <input
                   type="text"
-                  value={player.name} 
-                  onChange={(e) => updatePlayer(team, player.id, 'name', e.target.value)}
+                  defaultValue={player.name}
+                  onChange={(e) => updatePlayer(team, player.id, "name", e.target.value)}
                   className="h-8 w-full bg-white border border-slate-200 rounded px-2 text-black"
                   placeholder="Player Name"
                 />
@@ -107,15 +218,15 @@ const Teams = () => {
                 <Label className="text-[10px] uppercase text-slate-400">Pos</Label>
                 <input
                   type="text"
-                  value={player.position} 
-                  onChange={(e) => updatePlayer(team, player.id, 'position', e.target.value)}
+                  defaultValue={player.position}
+                  onChange={(e) => updatePlayer(team, player.id, "position", e.target.value)}
                   className="h-8 w-full uppercase bg-white border border-slate-200 rounded px-2 text-black"
                   placeholder="QB"
                 />
               </div>
-              <Button 
-                variant="ghost" 
-                size="icon" 
+              <Button
+                variant="ghost"
+                size="icon"
                 onClick={() => removePlayer(team, player.id)}
                 className="mt-5 text-slate-400 hover:text-red-500"
               >

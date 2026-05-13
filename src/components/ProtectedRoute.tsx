@@ -10,7 +10,9 @@ const ProtectedRoute = () => {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="animate-pulse text-slate-400 font-black uppercase tracking-widest">Verifying Session...</div>
+        <div className="animate-pulse text-slate-400 font-black uppercase tracking-widest">
+          Verifying Session...
+        </div>
       </div>
     );
   }

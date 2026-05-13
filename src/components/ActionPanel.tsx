@@ -41,7 +41,6 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
       setPendingAction(type);
       setStep("penalty");
     } else if (!isHomeOffense && ["Tackle", "Sack", "Interception"].includes(type)) {
-      // For defensive plays, ask for yard line
       setPendingAction(type);
       setStep("yardLine");
     } else {
@@ -86,6 +85,15 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
     setYardLine("");
   };
 
+  // Helper to filter players by position (case-insensitive)
+  const getFilteredPlayers = (positions: string[]) => {
+    const filtered = homeRoster.filter(p => 
+      p.position && positions.some(pos => p.position.toUpperCase() === pos.toUpperCase())
+    );
+    // Fallback: if no players match the specific position, show the whole roster
+    return filtered.length > 0 ? filtered : homeRoster;
+  };
+
   if (step === "tdType") {
     return (
       <div className="space-y-6 animate-in fade-in zoom-in duration-300">
@@ -104,6 +112,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
   }
 
   if (step === "passer") {
+    const passers = getFilteredPlayers(['QB']);
     return (
       <div className="space-y-6 animate-in fade-in zoom-in duration-300">
         <div className="flex items-center justify-between">
@@ -113,9 +122,10 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
           </Button>
         </div>
         <ScrollArea className="h-64 bg-slate-50 rounded-xl p-2">
-          {homeRoster.filter(p => p.position === 'QB').map(p => (
+          {passers.map(p => (
             <Button key={p.id} variant="ghost" className="w-full justify-start h-12 font-bold" onClick={() => handlePasserSelect(p)}>
               <span className="w-8 text-slate-400">#{p.number}</span> {p.name}
+              <span className="ml-auto text-[10px] text-slate-400 uppercase">{p.position}</span>
             </Button>
           ))}
         </ScrollArea>
@@ -124,6 +134,7 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
   }
 
   if (step === "receiver") {
+    const receivers = getFilteredPlayers(['WR', 'RB', 'TE', 'FB']);
     return (
       <div className="space-y-6 animate-in fade-in zoom-in duration-300">
         <div className="flex items-center justify-between">
@@ -133,9 +144,10 @@ const ActionPanel: React.FC<ActionPanelProps> = ({
           </Button>
         </div>
         <ScrollArea className="h-64 bg-slate-50 rounded-xl p-2">
-          {homeRoster.filter(p => ['WR', 'RB', 'TE', 'FB'].includes(p.position)).map(p => (
+          {receivers.map(p => (
             <Button key={p.id} variant="ghost" className="w-full justify-start h-12 font-bold" onClick={() => handleReceiverSelect(p)}>
               <span className="w-8 text-slate-400">#{p.number}</span> {p.name}
+              <span className="ml-auto text-[10px] text-slate-400 uppercase">{p.position}</span>
             </Button>
           ))}
         </ScrollArea>

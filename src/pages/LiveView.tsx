@@ -15,7 +15,7 @@ import TopPerformers from "@/components/TopPerformers";
 import Header from "@/components/Header";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Radio, ArrowLeft, Share2, Trophy, Users, Activity, Clock, MapPin } from "lucide-react";
+import { Radio, ArrowLeft, Share2, Trophy, Users, Activity, Clock, MapPin, Database } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { showSuccess } from "@/utils/toast";
 
@@ -23,21 +23,36 @@ const LiveView = () => {
   const { teamCode } = useParams();
   const [gameState, setGameState] = useState<GameState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [dbError, setDbError] = useState(false);
 
   useEffect(() => {
     if (!teamCode) return;
 
-    const fetchGame = async () => {
-      const { data, error } = await supabase
-        .from('games')
-        .select('state')
-        .eq('id', teamCode)
-        .single();
-
-      if (data) {
-        setGameState(data.state);
-      }
+    // If supabase is not configured, we can't fetch live data
+    if (!supabase) {
+      setDbError(true);
       setLoading(false);
+      return;
+    }
+
+    const fetchGame = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('games')
+          .select('state')
+          .eq('id', teamCode)
+          .single();
+
+        if (data) {
+          setGameState(data.state);
+        } else if (error) {
+          console.error("Supabase error:", error);
+        }
+      } catch (err) {
+        console.error("Fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchGame();
@@ -50,7 +65,9 @@ const LiveView = () => {
         table: 'games',
         filter: `id=eq.${teamCode}`
       }, (payload) => {
-        setGameState(payload.new.state);
+        if (payload.new && payload.new.state) {
+          setGameState(payload.new.state);
+        }
       })
       .subscribe();
 
@@ -75,6 +92,25 @@ const LiveView = () => {
     );
   }
 
+  if (dbError) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+        <Card className="max-w-md w-full p-8 text-center space-y-6 border-none shadow-xl">
+          <div className="w-20 h-20 bg-amber-100 rounded-full flex items-center justify-center mx-auto text-amber-600">
+            <Database className="w-10 h-10" />
+          </div>
+          <div>
+            <h2 className="text-2xl font-black uppercase tracking-tight">Database Not Connected</h2>
+            <p className="text-slate-500 text-sm mt-2">The Live View requires a database connection to sync data across devices. Please connect a database in the project settings.</p>
+          </div>
+          <Link to="/">
+            <Button className="w-full bg-slate-900 font-black uppercase tracking-widest h-12">Return Home</Button>
+          </Link>
+        </Card>
+      </div>
+    );
+  }
+
   if (!gameState) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
@@ -84,7 +120,7 @@ const LiveView = () => {
           </div>
           <div>
             <h2 className="text-2xl font-black uppercase tracking-tight">No Live Game Found</h2>
-            <p className="text-slate-500 text-sm mt-2">The team code "{teamCode}" doesn't have an active live session right now.</p>
+            <p className="text-slate-500 text-sm mt-2">The team code "{teamCode}" doesn't have an active live session right now. Make sure the tracker is running and synced.</p>
           </div>
           <Link to="/">
             <Button className="w-full bg-slate-900 font-black uppercase tracking-widest h-12">Return Home</Button>
@@ -144,7 +180,7 @@ const LiveView = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               <Card className="md:col-span-2 p-8 bg-white border-none shadow-sm">
-                <FootballField ballPosition={gameState.yardLine} possession={gameState.possession} />
+                <FootballField ballPosition={gameState.yardLine} possession={gameState.possession} onSpotBall={() => {}} />
               </Card>
               <div className="space-y-6">
                 <WinProbability 

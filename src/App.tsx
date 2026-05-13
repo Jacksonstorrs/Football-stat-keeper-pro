@@ -12,7 +12,7 @@ import Dashboard from "@/pages/Dashboard";
 import Index from "@/pages/Index";
 import Teams from "@/pages/Teams";
 import GameReport from "@/pages/GameReport";
-import LiveGame from "@/pages/LiveGame";
+import LiveView from "@/pages/LiveView";
 import GamesList from "@/pages/GamesList";
 import SeasonStats from "@/pages/SeasonStats";
 import CoachAnalytics from "@/pages/CoachAnalytics";
@@ -32,12 +32,14 @@ const App = () => (
             <BroadcastProvider>
               <Routes>
                 <Route path="/login" element={<Login />} />
+                {/* Public Route for Viewers */}
+                <Route path="/live/:teamCode" element={<LiveView />} />
+                
                 <Route element={<ProtectedRoute />}>
                   <Route path="/" element={<Dashboard />} />
                   <Route path="/tracker" element={<Index />} />
                   <Route path="/teams" element={<Teams />} />
                   <Route path="/report" element={<GameReport />} />
-                  <Route path="/live/:gameId" element={<LiveGame />} />
                   <Route path="/games" element={<GamesList />} />
                   <Route path="/season-stats" element={<SeasonStats />} />
                   <Route path="/coach-analytics" element={<CoachAnalytics />} />

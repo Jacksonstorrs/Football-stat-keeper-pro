@@ -18,7 +18,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal, RefreshCw, Trash2 } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal, RefreshCw, Trash2, UserCheck } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useBroadcast } from "@/context/BroadcastContext";
@@ -262,6 +262,25 @@ const Index = () => {
     showSuccess("Game reset to initial state");
   };
 
+  const handleSyncRoster = () => {
+    const savedTeams = localStorage.getItem(`${TEAM_STORAGE_KEY}_${teamCode}`);
+    if (savedTeams) {
+      const teamData = JSON.parse(savedTeams);
+      setGameState(prev => ({
+        ...prev,
+        homeTeam: teamData.homeTeamName || prev.homeTeam,
+        awayTeam: teamData.awayTeamName || prev.awayTeam,
+        roster: {
+          home: teamData.homeRoster || [],
+          away: teamData.awayRoster || []
+        }
+      }));
+      showSuccess("Roster synced from team settings");
+    } else {
+      showError("No team settings found to sync");
+    }
+  };
+
   const currentDrive = gameState.drives.find(d => d.id === gameState.currentDriveId);
 
   return (
@@ -284,6 +303,15 @@ const Index = () => {
             </div>
           </div>
           <div className="flex items-center gap-4">
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleSyncRoster}
+              className="h-12 font-black uppercase text-[10px] gap-2 border-emerald-100 text-emerald-600 hover:bg-emerald-50"
+            >
+              <UserCheck className="w-4 h-4" /> Sync Roster
+            </Button>
+
             <Link to="/broadcast-sync">
               <Button variant="outline" size="sm" className="h-12 font-black uppercase text-[10px] gap-2 border-blue-100 text-blue-600 hover:bg-blue-50">
                 <RefreshCw className={`w-4 h-4 ${connected ? 'animate-spin-slow' : ''}`} /> Broadcast Sync

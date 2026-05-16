@@ -18,11 +18,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
-import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal, RefreshCw, Trash2, UserCheck } from "lucide-react";
+import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTriangle, Archive, BarChart3, Share2, Copy, Lock, CheckCircle2, ArrowLeft, Clock, SlidersHorizontal, RefreshCw, Trash2, UserCheck, Loader2 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useBroadcast } from "@/context/BroadcastContext";
 import { useSync } from "@/context/SyncContext";
+import { supabase } from "@/integrations/supabase/client";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 
@@ -37,6 +38,7 @@ const Index = () => {
   const [history, setHistory] = useState<GameState[]>([]);
   const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
   const [isResetDialogOpen, setIsResetDialogOpen] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
 
   const getInitialState = useCallback(() => {
     const savedTeams = localStorage.getItem(`${TEAM_STORAGE_KEY}_${teamCode}`);
@@ -81,6 +83,41 @@ const Index = () => {
     return getInitialState();
   });
 
+  // Cloud Initialization
+  useEffect(() => {
+    const initFromCloud = async () => {
+      if (!teamCode) return;
+      
+      const savedLocal = localStorage.getItem(`${GAME_STORAGE_KEY}_${teamCode}`);
+      
+      // If we have local data, we trust it (offline-first)
+      if (savedLocal) {
+        setIsInitializing(false);
+        return;
+      }
+
+      // Otherwise, try to pull from cloud
+      try {
+        const { data, error } = await supabase
+          .from('games')
+          .select('state')
+          .eq('id', teamCode)
+          .single();
+        
+        if (data?.state) {
+          setGameState(data.state);
+          localStorage.setItem(`${GAME_STORAGE_KEY}_${teamCode}`, JSON.stringify(data.state));
+        }
+      } catch (err) {
+        console.error("Cloud init error:", err);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initFromCloud();
+  }, [teamCode]);
+
   const [manualAdjust, setManualAdjust] = useState({
     down: gameState.down,
     distance: gameState.distance,
@@ -93,9 +130,10 @@ const Index = () => {
 
   // Save locally and trigger background sync
   useEffect(() => {
+    if (isInitializing) return;
     localStorage.setItem(`${GAME_STORAGE_KEY}_${teamCode}`, JSON.stringify(gameState));
     triggerSync('game');
-  }, [gameState, teamCode, triggerSync]);
+  }, [gameState, teamCode, triggerSync, isInitializing]);
 
   useEffect(() => {
     if (gameState.isClockRunning && gameState.gameClock > 0) {
@@ -273,6 +311,17 @@ const Index = () => {
       showError("No team settings found to sync");
     }
   };
+
+  if (isInitializing) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-8 h-8 text-blue-600 animate-spin" />
+          <p className="text-xs font-black uppercase tracking-widest text-slate-400">Initializing Session...</p>
+        </div>
+      </div>
+    );
+  }
 
   const currentDrive = gameState.drives.find(d => d.id === gameState.currentDriveId);
 

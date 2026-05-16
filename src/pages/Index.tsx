@@ -22,7 +22,7 @@ import { Settings, Users, FileText, Radio, Save, Calendar, PlusCircle, AlertTria
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import { useBroadcast } from "@/context/BroadcastContext";
-import { supabase } from "@/lib/supabase";
+import { useSync } from "@/context/SyncContext";
 import Header from "@/components/Header";
 import { Badge } from "@/components/ui/badge";
 
@@ -32,6 +32,7 @@ const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
 const Index = () => {
   const { teamCode } = useAuth();
   const { connected } = useBroadcast();
+  const { triggerSync } = useSync();
   const navigate = useNavigate();
   const [history, setHistory] = useState<GameState[]>([]);
   const [isAdjustDialogOpen, setIsAdjustDialogOpen] = useState(false);
@@ -90,18 +91,11 @@ const Index = () => {
 
   const clockInterval = useRef<NodeJS.Timeout | null>(null);
 
-  // Sync to Cloud and Local Storage
+  // Save locally and trigger background sync
   useEffect(() => {
     localStorage.setItem(`${GAME_STORAGE_KEY}_${teamCode}`, JSON.stringify(gameState));
-    
-    if (supabase && teamCode) {
-      const syncToCloud = async () => {
-        await supabase.from('games').upsert({ id: teamCode, state: gameState, updated_at: new Date().toISOString() });
-      };
-      const timeout = setTimeout(syncToCloud, 1000);
-      return () => clearTimeout(timeout);
-    }
-  }, [gameState, teamCode]);
+    triggerSync('game');
+  }, [gameState, teamCode, triggerSync]);
 
   useEffect(() => {
     if (gameState.isClockRunning && gameState.gameClock > 0) {

@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "@/context/AuthContext";
 import { BroadcastProvider } from "@/context/BroadcastContext";
+import { SyncProvider } from "@/context/SyncContext";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Login from "@/components/Login";
@@ -30,25 +31,27 @@ const App = () => (
         <Sonner position="top-center" />
         <BrowserRouter>
           <AuthProvider>
-            <BroadcastProvider>
-              <Routes>
-                <Route path="/login" element={<Login />} />
-                <Route path="/live/:teamCode" element={<LiveView />} />
-                
-                <Route element={<ProtectedRoute />}>
-                  <Route path="/" element={<Dashboard />} />
-                  <Route path="/tracker" element={<Index />} />
-                  <Route path="/teams" element={<Teams />} />
-                  <Route path="/report" element={<GameReport />} />
-                  <Route path="/games" element={<GamesList />} />
-                  <Route path="/season-stats" element={<SeasonStats />} />
-                  <Route path="/player/:playerId" element={<PlayerProfile />} />
-                  <Route path="/coach-analytics" element={<CoachAnalytics />} />
-                  <Route path="/broadcast-sync" element={<BroadcastSync />} />
-                </Route>
-                <Route path="*" element={<NotFound />} />
-              </Routes>
-            </BroadcastProvider>
+            <SyncProvider>
+              <BroadcastProvider>
+                <Routes>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/live/:teamCode" element={<LiveView />} />
+                  
+                  <Route element={<ProtectedRoute />}>
+                    <Route path="/" element={<Dashboard />} />
+                    <Route path="/tracker" element={<Index />} />
+                    <Route path="/teams" element={<Teams />} />
+                    <Route path="/report" element={<GameReport />} />
+                    <Route path="/games" element={<GamesList />} />
+                    <Route path="/season-stats" element={<SeasonStats />} />
+                    <Route path="/player/:playerId" element={<PlayerProfile />} />
+                    <Route path="/coach-analytics" element={<CoachAnalytics />} />
+                    <Route path="/broadcast-sync" element={<BroadcastSync />} />
+                  </Route>
+                  <Route path="*" element={<NotFound />} />
+                </Routes>
+              </BroadcastProvider>
+            </SyncProvider>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>

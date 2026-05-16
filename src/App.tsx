@@ -17,6 +17,7 @@ import GamesList from "@/pages/GamesList";
 import SeasonStats from "@/pages/SeasonStats";
 import CoachAnalytics from "@/pages/CoachAnalytics";
 import BroadcastSync from "@/pages/BroadcastSync";
+import PlayerProfile from "@/pages/PlayerProfile";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
                   <Route path="/report" element={<GameReport />} />
                   <Route path="/games" element={<GamesList />} />
                   <Route path="/season-stats" element={<SeasonStats />} />
+                  <Route path="/player/:playerId" element={<PlayerProfile />} />
                   <Route path="/coach-analytics" element={<CoachAnalytics />} />
                   <Route path="/broadcast-sync" element={<BroadcastSync />} />
                 </Route>

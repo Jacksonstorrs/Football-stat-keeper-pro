@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Player, PlayerStats } from "@/types/football";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Link } from "react-router-dom";
 
 interface StatsTableProps {
   players: Player[];
@@ -40,10 +41,10 @@ const StatsTable: React.FC<StatsTableProps> = ({ players, stats, title }) => {
               return (
                 <TableRow key={player.id} className="hover:bg-slate-50/50 transition-colors">
                   <TableCell className="py-4">
-                    <div className="flex flex-col">
-                      <span className="font-bold text-xs">#{player.number} {player.name}</span>
+                    <Link to={`/player/${player.id}`} className="flex flex-col group">
+                      <span className="font-bold text-xs group-hover:text-blue-600 transition-colors">#{player.number} {player.name}</span>
                       <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{player.position}</span>
-                    </div>
+                    </Link>
                   </TableCell>
                   <TableCell className="text-center font-mono text-[10px] text-blue-600 font-bold">
                     {s.passYds}

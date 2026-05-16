@@ -54,9 +54,11 @@ const GamesList = () => {
     if (!teamCode) return;
 
     const loadGames = async () => {
+      // Load from local storage first
       const saved = localStorage.getItem(`${SEASON_STORAGE_KEY}_${teamCode}`);
       if (saved) setGames(JSON.parse(saved));
 
+      // Fetch from Supabase
       const { data, error } = await supabase
         .from('seasons')
         .select('data')
@@ -71,6 +73,7 @@ const GamesList = () => {
 
     loadGames();
 
+    // Real-time subscription
     const channel = supabase
       .channel(`season_${teamCode}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'seasons', filter: `id=eq.${teamCode}` }, 
@@ -83,7 +86,9 @@ const GamesList = () => {
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [teamCode]);
 
   const saveGames = async (updated: (GameState | ScheduledGame)[]) => {
@@ -91,21 +96,35 @@ const GamesList = () => {
     localStorage.setItem(`${SEASON_STORAGE_KEY}_${teamCode}`, JSON.stringify(updated));
 
     setIsSyncing(true);
-    await supabase
-      .from('seasons')
-      .upsert({ id: teamCode, data: updated, updated_at: new Date().toISOString() });
-    setIsSyncing(false);
+    try {
+      const { error } = await supabase
+        .from('seasons')
+        .upsert({ id: teamCode, data: updated, updated_at: new Date().toISOString() });
+      
+      if (error) throw error;
+    } catch (err) {
+      console.error("Sync error:", err);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   const handleAddGame = () => {
+    if (!newGame.homeTeam || !newGame.awayTeam || !newGame.date) {
+      showError("Please fill in the required fields.");
+      return;
+    }
+
     const game: ScheduledGame = {
       id: Math.random().toString(36).substr(2, 9),
       ...newGame,
       status: 'scheduled'
     };
-    saveGames([game, ...games]);
+
+    const updated = [game, ...games];
+    saveGames(updated);
     setIsAddDialogOpen(false);
-    showSuccess("Game scheduled");
+    showSuccess("Game scheduled successfully");
     setNewGame({ date: '', time: '', homeTeam: '', awayTeam: '', location: '' });
   };
 
@@ -143,10 +162,12 @@ const GamesList = () => {
       return gId !== id;
     });
     saveGames(updated);
-    showSuccess("Game removed");
+    showSuccess("Game removed from schedule");
   };
 
-  const isLiveGame = (game: any): game is GameState => 'playLog' in game;
+  const isLiveGame = (game: any): game is GameState => {
+    return 'playLog' in game;
+  };
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8">
@@ -163,14 +184,14 @@ const GamesList = () => {
                 <h1 className="text-3xl font-black tracking-tighter text-slate-900 uppercase">Season Schedule</h1>
                 {isSyncing && <RefreshCw className="w-4 h-4 text-blue-500 animate-spin" />}
               </div>
-              <p className="text-slate-500 text-sm">Syncing for Team: <span className="font-bold text-blue-600">{teamCode}</span></p>
+              <p className="text-slate-500 text-sm font-medium">Manage upcoming games and past results</p>
             </div>
           </div>
           
           <div className="flex gap-2">
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2 bg-slate-900">
+                <Button className="gap-2 bg-slate-900 hover:bg-slate-800 shadow-lg">
                   <Plus className="w-4 h-4" /> Schedule Game
                 </Button>
               </DialogTrigger>

@@ -12,9 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { showSuccess } from "@/utils/toast";
 import { supabase } from "@/integrations/supabase/client";
-
-const SEASON_STORAGE_KEY = 'football_stat_keeper_season_v1';
-const GAME_STORAGE_KEY = 'football_stat_keeper_pro_v2';
+import SupabaseDiagnostic from "@/components/SupabaseDiagnostic";
 
 const Dashboard = () => {
   const { teamCode } = useAuth();
@@ -36,7 +34,6 @@ const Dashboard = () => {
     const loadData = async () => {
       setLoading(true);
       
-      // Fetch Season Data
       const { data: seasonData } = await supabase
         .from('seasons')
         .select('data')
@@ -57,7 +54,6 @@ const Dashboard = () => {
         recentActivity: games.slice(0, 5)
       });
 
-      // Process Standings and Player Stats
       const standings: Record<string, any> = {};
       const playerStats: Record<string, any> = {};
 
@@ -86,7 +82,6 @@ const Dashboard = () => {
           standings[awayTeam].pa += game.homeScore;
         }
 
-        // Aggregate Player Stats
         if (game.stats && game.roster) {
           const allPlayers = [
             ...(game.roster.home || []).map((p: any) => ({ ...p, team: homeTeam })),
@@ -111,7 +106,6 @@ const Dashboard = () => {
       setTeamStandings(standings);
       setSortedPlayers(Object.values(playerStats).sort((a: any, b: any) => (b.passYds + b.rushYds) - (a.passYds + a.rushYds)).slice(0, 5));
 
-      // Fetch Active Game
       const { data: activeGameData } = await supabase
         .from('games')
         .select('state')
@@ -127,7 +121,6 @@ const Dashboard = () => {
 
     loadData();
     
-    // Subscribe to changes
     const channel = supabase
       .channel(`dashboard_${teamCode}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'seasons', filter: `id=eq.${teamCode}` }, loadData)
@@ -195,6 +188,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-slate-50/50 dark:bg-slate-950">
       <Header />
+      <SupabaseDiagnostic />
       <main className="max-w-6xl mx-auto p-6 md:p-12">
         <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
           <div className="animate-in fade-in slide-in-from-left-4 duration-500">
